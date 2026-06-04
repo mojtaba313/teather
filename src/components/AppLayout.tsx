@@ -9,9 +9,9 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col" dir="rtl">
-      <header className="border-b bg-white">
+      <header className="sticky top-0 z-50 border-b border-white/20 bg-white/60 backdrop-blur-xl shadow-sm shadow-neutral-900/5">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg">
+          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg transition-opacity hover:opacity-70">
             <Clapperboard className="h-5 w-5" />
             تیاتر
           </Link>
@@ -20,7 +20,7 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
             <form action="/api/auth/signout" method="post">
               <button
                 type="submit"
-                className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-800"
+                className="flex items-center gap-1 text-sm text-neutral-500 transition-colors hover:text-neutral-800"
               >
                 <LogOut className="h-4 w-4" />
                 خروج
@@ -29,7 +29,7 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 mx-auto w-full max-w-7xl p-4">{children}</main>
+      <main className="flex-1 mx-auto w-full max-w-7xl p-4 animate-fade-in">{children}</main>
     </div>
   )
 }

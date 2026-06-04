@@ -9,7 +9,7 @@ export function Badge({ className, children, variant = "default" }: { className?
     destructive: "bg-red-100 text-red-800",
   }
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", variants[variant], className)}>
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shadow-sm", variants[variant], className)}>
       {children}
     </span>
   )
