@@ -59,6 +59,8 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   const [expandedScenes, setExpandedScenes] = useState<Set<number>>(new Set([0]))
   const [newCharName, setNewCharName] = useState("")
   const [charList] = useState(characters)
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragContent, setDragContent] = useState<{ sceneIdx: number; contentIdx: number } | null>(null)
 
   function toggleScene(idx: number) {
     setExpandedScenes((prev) => {
@@ -79,6 +81,34 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
 
   function removeScene(idx: number) {
     setScenes((prev) => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, orderIndex: i })))
+  }
+
+  function moveScene(from: number, to: number) {
+    if (from === to) return
+    setScenes((prev) => {
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next.map((s, i) => ({ ...s, orderIndex: i }))
+    })
+  }
+
+  function moveContent(sceneIdx: number, from: number, to: number) {
+    if (from === to) return
+    setScenes((prev) =>
+      prev.map((s, i) => {
+        if (i !== sceneIdx) return s
+        const next = [...s.content]
+        const [moved] = next.splice(from, 1)
+        next.splice(to, 0, moved)
+        return {
+          ...s,
+          content: next.map((item, j) =>
+            item.type === "dialogue" ? { ...item, lineOrder: next.filter((c) => c.type === "dialogue" && next.indexOf(c) <= j).length - 1 } : item
+          ),
+        }
+      })
+    )
   }
 
   function updateScene(idx: number, field: string, value: any) {
@@ -205,11 +235,25 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
 
       <div className="space-y-4">
         {scenes.map((scene, si) => (
-          <Card key={si}>
+          <Card
+            key={si}
+            draggable={canEdit}
+            onDragStart={() => canEdit && setDragIdx(si)}
+            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.opacity = "0.5" }}
+            onDragLeave={(e) => { e.currentTarget.style.opacity = "1" }}
+            onDrop={(e) => {
+              e.currentTarget.style.opacity = "1"
+              if (dragIdx !== null && dragIdx !== si) {
+                moveScene(dragIdx, si)
+              }
+              setDragIdx(null)
+            }}
+            className="transition-all duration-200"
+          >
             <CardHeader className="cursor-pointer" onClick={() => toggleScene(si)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {canEdit && <GripVertical className="h-4 w-4 cursor-grab text-neutral-300" />}
+                  {canEdit && <GripVertical className="h-4 w-4 cursor-grab text-neutral-300 dark:text-neutral-600" />}
                   {expandedScenes.has(si) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   <CardTitle className="text-base">
                     {canEdit ? (
@@ -255,7 +299,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                       value={scene.summary}
                       onChange={(e) => updateScene(si, "summary", e.target.value)}
                       rows={2}
-                      className="mt-1 w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-xl border border-neutral-200 bg-white/50 px-3 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:border-neutral-300 focus:ring-2 focus:ring-neutral-900/10 focus:bg-white/80 dark:border-neutral-700 dark:bg-neutral-800/30 dark:focus:bg-neutral-800/50 dark:focus:border-neutral-600"
                       placeholder="خلاصه صحنه"
                     />
                   ) : (
@@ -274,14 +318,33 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                     )}
                   </div>
                   {scene.content.map((item, ci) => (
-                    <div key={ci} className={`flex items-start gap-2 rounded-md border p-2 ${item.type === "description" ? "bg-amber-50 border-amber-200" : ""}`}>
+                    <div
+                      key={ci}
+                      draggable={canEdit}
+                      onDragStart={() => canEdit && setDragContent({ sceneIdx: si, contentIdx: ci })}
+                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.opacity = "0.4" }}
+                      onDragLeave={(e) => { e.currentTarget.style.opacity = "1" }}
+                      onDrop={(e) => {
+                        e.currentTarget.style.opacity = "1"
+                        if (dragContent && dragContent.sceneIdx === si && dragContent.contentIdx !== ci) {
+                          moveContent(si, dragContent.contentIdx, ci)
+                        }
+                        setDragContent(null)
+                      }}
+                      className={`flex items-start gap-2 rounded-xl border p-3 transition-all duration-200 ${
+                        item.type === "description"
+                          ? "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/10"
+                          : "border-neutral-200 bg-white/60 dark:border-neutral-700 dark:bg-neutral-800/30"
+                      } ${canEdit ? "cursor-grab" : ""}`}
+                    >
+                      {canEdit && <GripVertical className="mt-1.5 h-4 w-4 shrink-0 text-neutral-300 dark:text-neutral-600" />}
                       {canEdit ? (
                         item.type === "dialogue" ? (
                           <>
                             <select
                               value={item.characterId}
                               onChange={(e) => updateContent(si, ci, "characterId", e.target.value)}
-                              className="w-28 rounded border border-neutral-300 bg-white px-2 py-1 text-sm"
+                              className="w-28 shrink-0 rounded-lg border border-neutral-200 bg-white/80 px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-800/50"
                             >
                               <option value="">انتخاب...</option>
                               {charList.map((c) => (
@@ -292,7 +355,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                               value={item.text}
                               onChange={(e) => updateContent(si, ci, "text", e.target.value)}
                               rows={1}
-                              className="flex-1 rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm"
+                              className="flex-1 rounded-lg border border-neutral-200 bg-white/50 px-3 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:border-neutral-300 focus:ring-2 focus:ring-neutral-900/10 focus:bg-white/80 dark:border-neutral-700 dark:bg-neutral-800/30 dark:focus:bg-neutral-800/50 dark:focus:border-neutral-600"
                               placeholder="متن دیالوگ"
                             />
                           </>
@@ -301,7 +364,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                             value={item.text}
                             onChange={(e) => updateContent(si, ci, "text", e.target.value)}
                             rows={2}
-                            className="flex-1 rounded border border-amber-300 bg-transparent px-2 py-1 text-sm italic"
+                            className="flex-1 rounded-lg border border-amber-200 bg-amber-50/30 px-3 py-1.5 text-sm italic shadow-sm backdrop-blur-sm transition-all duration-200 focus:border-amber-300 focus:ring-2 focus:ring-amber-900/10 focus:bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/5 dark:focus:bg-amber-900/10 dark:focus:border-amber-700"
                             placeholder="توضیح صحنه (حرکت بازیگر، نور، صدا و...)"
                           />
                         )
@@ -311,7 +374,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                           <p className="text-sm">{item.text}</p>
                         </>
                       ) : (
-                        <p className="text-sm italic text-amber-700">{item.text}</p>
+                        <p className="text-sm italic text-amber-700 dark:text-amber-400">{item.text}</p>
                       )}
                       {canEdit && (
                         <Button variant="ghost" size="sm" onClick={() => removeContent(si, ci)}>
