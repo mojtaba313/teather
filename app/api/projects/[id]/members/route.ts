@@ -8,13 +8,13 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
-  const { projectId, email, roles } = body
+  const { projectId, username, roles } = body
   const member = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
   })
   if (!member || !hasAnyRole(member.roles, ["director"]))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  const user = await prisma.user.findUnique({ where: { email } })
+  const user = await prisma.user.findUnique({ where: { username } })
   if (!user) return NextResponse.json({ error: "کاربر یافت نشد" }, { status: 404 })
   const existing = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId: user.id, projectId } },

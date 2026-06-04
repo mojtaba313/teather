@@ -18,18 +18,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { name, email, password } = await req.json()
-    if (!name || !email || !password) {
+    const { name, username, password } = await req.json()
+    if (!name || !username || !password) {
       return NextResponse.json({ error: "همه فیلدها الزامی است" }, { status: 400 })
     }
 
-    const exists = await prisma.user.findUnique({ where: { email } })
+    const exists = await prisma.user.findUnique({ where: { username } })
     if (exists) {
-      return NextResponse.json({ error: "این ایمیل قبلاً ثبت شده است" }, { status: 400 })
+      return NextResponse.json({ error: "این نام کاربری قبلاً ثبت شده است" }, { status: 400 })
     }
 
     const hashed = await bcrypt.hash(password, 12)
-    await prisma.user.create({ data: { name, email, password: hashed } })
+    await prisma.user.create({ data: { name, username, password: hashed } })
 
     revalidatePath("/dashboard")
     return NextResponse.json({ ok: true })

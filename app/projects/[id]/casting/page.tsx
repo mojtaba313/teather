@@ -81,7 +81,7 @@ export default async function CastingPage({ params }: { params: Promise<{ id: st
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{casting.actor.name}</p>
-                          <p className="text-xs text-neutral-500">{casting.actor.email}</p>
+                          <p className="text-xs text-neutral-500">@{casting.actor.username}</p>
                         </div>
                         {canAssign && (
                           <form action={assignActor}>

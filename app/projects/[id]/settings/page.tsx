@@ -29,16 +29,16 @@ async function createUser(formData: FormData) {
   if (!isDirector) return
 
   const name = formData.get("name") as string
-  const email = formData.get("email") as string
+  const username = formData.get("username") as string
   const password = formData.get("password") as string
-  if (!name || !email || !password) return
+  if (!name || !username || !password) return
 
-  const exists = await prisma.user.findUnique({ where: { email } })
+  const exists = await prisma.user.findUnique({ where: { username } })
   if (exists) return
 
   const bcrypt = await import("bcryptjs")
   const hashed = await bcrypt.hash(password, 12)
-  await prisma.user.create({ data: { name, email, password: hashed } })
+  await prisma.user.create({ data: { name, username, password: hashed } })
   revalidatePath(`/projects/${formData.get("projectId")}/settings`)
 }
 
@@ -47,7 +47,7 @@ async function addMember(formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) return
   const projectId = formData.get("projectId") as string
-  const email = formData.get("email") as string
+  const username = formData.get("username") as string
   const roles = formData.getAll("roles") as string[]
 
   const member = await prisma.projectMember.findUnique({
@@ -55,7 +55,7 @@ async function addMember(formData: FormData) {
   })
   if (!member || !member.roles.includes("director")) return
 
-  const user = await prisma.user.findUnique({ where: { email } })
+  const user = await prisma.user.findUnique({ where: { username } })
   if (!user) return
 
   const existing = await prisma.projectMember.findUnique({
@@ -158,7 +158,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">ایمیل</label>
-                    <Input name="email" type="email" required placeholder="ایمیل" />
+                    <Input name="username" required placeholder="نام کاربری" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">رمز عبور</label>
@@ -174,8 +174,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
                 <form action={addMember} className="space-y-3">
                   <input type="hidden" name="projectId" value={id} />
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">ایمیل کاربر</label>
-                    <Input name="email" type="email" required placeholder="ایمیل کاربر عضو شده" />
+                    <label className="block text-sm font-medium mb-1.5">نام کاربری</label>
+                    <Input name="username" required placeholder="نام کاربری عضو" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">نقش‌ها</label>
@@ -202,7 +202,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
               <div key={m.id} className="flex items-center justify-between border-b pb-3 last:border-0">
                 <div>
                   <p className="font-medium">{m.user.name}</p>
-                  <p className="text-sm text-neutral-500">{m.user.email}</p>
+                  <p className="text-sm text-neutral-500">@{m.user.username}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex flex-wrap gap-1">
