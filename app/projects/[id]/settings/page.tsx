@@ -157,7 +157,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
                     <Input name="name" required placeholder="نام و نام خانوادگی" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">ایمیل</label>
+                    <label className="block text-sm font-medium mb-1.5">نام کاربری</label>
                     <Input name="username" required placeholder="نام کاربری" />
                   </div>
                   <div>
