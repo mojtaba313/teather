@@ -16,7 +16,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json()
   await prisma.character.update({
     where: { id: characterId },
-    data: { name: body.name, description: body.description, age: body.age, gender: body.gender },
+    data: { name: body.name, description: body.description, age: body.age, gender: body.gender, image: body.image },
   })
   revalidatePath(`/projects/${projectId}/characters`)
   revalidatePath(`/projects/${projectId}/script`)

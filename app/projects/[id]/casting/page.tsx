@@ -73,7 +73,12 @@ export default async function CastingPage({ params }: { params: Promise<{ id: st
               return (
                 <Card key={char.id}>
                   <CardHeader>
-                    <CardTitle>{char.name}</CardTitle>
+                    <div className="flex items-center gap-3">
+                      {char.image && (
+                        <img src={char.image} alt="" className="h-10 w-10 rounded-full object-cover" />
+                      )}
+                      <CardTitle>{char.name}</CardTitle>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {char.description && <p className="text-sm text-neutral-500 mb-3">{char.description}</p>}

@@ -1,10 +1,11 @@
 "use client"
 
 import { useRouter, useParams } from "next/navigation"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent } from "@/src/components/ui/Card"
+import { ImageUp } from "lucide-react"
 
 export default function NewCharacterPage() {
   const router = useRouter()
@@ -12,12 +13,27 @@ export default function NewCharacterPage() {
   const id = params.id as string
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     setError("")
     const form = new FormData(e.currentTarget)
+    const file = form.get("image") as File | null
+    let imageUrl = ""
+
+    if (file && file.size > 0) {
+      const uploadForm = new FormData()
+      uploadForm.set("file", file)
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: uploadForm })
+      if (uploadRes.ok) {
+        const { url } = await uploadRes.json()
+        imageUrl = url
+      }
+    }
+
     const res = await fetch(`/api/projects/${id}/characters`, {
       method: "POST",
       body: JSON.stringify({
@@ -25,6 +41,7 @@ export default function NewCharacterPage() {
         description: form.get("description"),
         age: form.get("age") ? Number(form.get("age")) : null,
         gender: form.get("gender"),
+        image: imageUrl || null,
       }),
     })
     if (res.ok) {
@@ -34,6 +51,13 @@ export default function NewCharacterPage() {
       setError(data.error || "خطا")
     }
     setLoading(false)
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      setPreview(URL.createObjectURL(file))
+    }
   }
 
   return (
@@ -65,6 +89,29 @@ export default function NewCharacterPage() {
                   <option value="غیره">غیره</option>
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">تصویر</label>
+              <input
+                ref={fileRef}
+                name="image"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-neutral-300 p-3 text-sm text-neutral-500 hover:border-neutral-400"
+              >
+                <ImageUp className="h-5 w-5" />
+                {preview ? "تغییر تصویر" : "انتخاب تصویر"}
+              </div>
+              {preview && (
+                <div className="mt-2">
+                  <img src={preview} alt="preview" className="h-24 w-24 rounded-md object-cover" />
+                </div>
+              )}
             </div>
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "..." : "ایجاد شخصیت"}

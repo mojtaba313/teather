@@ -9,6 +9,9 @@ import { Input } from "@/src/components/ui/Input"
 import { Plus, Pencil, Trash2, X } from "lucide-react"
 import { hasAnyRole } from "@/src/lib/roles"
 import { revalidatePath } from "next/cache"
+import { writeFile } from "fs/promises"
+import path from "path"
+import crypto from "crypto"
 
 async function deleteCharacter(formData: FormData) {
   "use server"
@@ -41,6 +44,17 @@ async function editCharacter(formData: FormData) {
   const name = formData.get("name") as string
   if (!name) return
 
+  let image = formData.get("existingImage") as string || null
+  const file = formData.get("image") as File | null
+  if (file && file.size > 0) {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg"
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const filename = `${crypto.randomUUID()}.${ext}`
+    const filepath = path.join(process.cwd(), "public", "uploads", filename)
+    await writeFile(filepath, buffer)
+    image = `/uploads/${filename}`
+  }
+
   await prisma.character.update({
     where: { id: characterId },
     data: {
@@ -48,6 +62,7 @@ async function editCharacter(formData: FormData) {
       description: (formData.get("description") as string) || null,
       age: formData.get("age") ? Number(formData.get("age")) : null,
       gender: (formData.get("gender") as string) || null,
+      image,
     },
   })
   revalidatePath(`/projects/${projectId}/characters`)
@@ -115,6 +130,7 @@ export default async function CharactersPage(props: {
                       <form action={editCharacter} className="space-y-3">
                         <input type="hidden" name="characterId" value={char.id} />
                         <input type="hidden" name="projectId" value={id} />
+                        <input type="hidden" name="existingImage" value={char.image ?? ""} />
                         <div>
                           <label className="block text-sm font-medium mb-1.5">نام شخصیت</label>
                           <Input name="name" required defaultValue={char.name} />
@@ -147,6 +163,15 @@ export default async function CharactersPage(props: {
                             </select>
                           </div>
                         </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1.5">تصویر</label>
+                          {char.image && (
+                            <div className="mb-2">
+                              <img src={char.image} alt="" className="h-20 w-20 rounded-md object-cover" />
+                            </div>
+                          )}
+                          <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="w-full text-sm file:mr-2 file:rounded file:border-0 file:bg-neutral-100 file:px-3 file:py-1 file:text-sm file:font-medium" />
+                        </div>
                         <Button type="submit" size="sm">ذخیره</Button>
                       </form>
                     </CardContent>
@@ -157,7 +182,12 @@ export default async function CharactersPage(props: {
               return (
                 <Card key={char.id}>
                   <CardHeader>
-                    <CardTitle>{char.name}</CardTitle>
+                    <div className="flex items-center gap-3">
+                      {char.image && (
+                        <img src={char.image} alt="" className="h-12 w-12 rounded-full object-cover" />
+                      )}
+                      <CardTitle>{char.name}</CardTitle>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {char.description && <p className="text-sm text-neutral-500 mb-2">{char.description}</p>}

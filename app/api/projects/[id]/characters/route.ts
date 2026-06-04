@@ -15,7 +15,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   const body = await req.json()
   const character = await prisma.character.create({
-    data: { projectId, name: body.name, description: body.description, age: body.age, gender: body.gender },
+    data: { projectId, name: body.name, description: body.description, age: body.age, gender: body.gender, image: body.image },
   })
   revalidatePath(`/projects/${projectId}/characters`)
   revalidatePath(`/projects/${projectId}/script`)
