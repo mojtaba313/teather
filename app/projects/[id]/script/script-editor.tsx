@@ -19,15 +19,23 @@ interface ScriptScene {
   setting: string
   timeOfDay: string
   summary: string
-  dialogues: ScriptDialogue[]
+  content: ScriptContentItem[]
 }
 
 interface ScriptDialogue {
+  type: "dialogue"
   characterId: string
   characterName: string
   text: string
   lineOrder: number
 }
+
+interface ScriptDescription {
+  type: "description"
+  text: string
+}
+
+type ScriptContentItem = ScriptDialogue | ScriptDescription
 
 interface ScriptEditorProps {
   projectId: string
@@ -39,7 +47,12 @@ interface ScriptEditorProps {
 export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptEditorProps) {
   const router = useRouter()
   const [scenes, setScenes] = useState<ScriptScene[]>(() => {
-    if (script?.contentJson?.scenes) return script.contentJson.scenes
+    if (script?.contentJson?.scenes) {
+      return script.contentJson.scenes.map((s: any) => ({
+        ...s,
+        content: s.content || (s.dialogues || []).map((d: any, i: number) => ({ ...d, type: "dialogue" as const, lineOrder: d.lineOrder ?? i })),
+      }))
+    }
     return []
   })
   const [saving, setSaving] = useState(false)
@@ -59,7 +72,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   function addScene() {
     setScenes((prev) => [
       ...prev,
-      { orderIndex: prev.length, title: `صحنه ${prev.length + 1}`, setting: "", timeOfDay: "", summary: "", dialogues: [] },
+      { orderIndex: prev.length, title: `صحنه ${prev.length + 1}`, setting: "", timeOfDay: "", summary: "", content: [] },
     ])
     setExpandedScenes((prev) => new Set([...prev, scenes.length]))
   }
@@ -78,9 +91,9 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
         i === sceneIdx
           ? {
               ...s,
-              dialogues: [
-                ...s.dialogues,
-                { characterId: charList[0]?.id || "", characterName: charList[0]?.name || "", text: "", lineOrder: s.dialogues.length },
+              content: [
+                ...s.content,
+                { type: "dialogue" as const, characterId: charList[0]?.id || "", characterName: charList[0]?.name || "", text: "", lineOrder: s.content.filter((c) => c.type === "dialogue").length },
               ],
             }
           : s
@@ -88,34 +101,51 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     )
   }
 
-  function updateDialogue(sceneIdx: number, dialogueIdx: number, field: string, value: any) {
+  function addDescription(sceneIdx: number) {
+    setScenes((prev) =>
+      prev.map((s, i) =>
+        i === sceneIdx
+          ? { ...s, content: [...s.content, { type: "description" as const, text: "" }] }
+          : s
+      )
+    )
+  }
+
+  function updateContent(sceneIdx: number, contentIdx: number, field: string, value: any) {
     setScenes((prev) =>
       prev.map((s, i) =>
         i === sceneIdx
           ? {
               ...s,
-              dialogues: s.dialogues.map((d, j) =>
-                j === dialogueIdx
-                  ? {
-                      ...d,
-                      [field]: value,
-                      ...(field === "characterId"
-                        ? { characterName: charList.find((c) => c.id === value)?.name || "" }
-                        : {}),
-                    }
-                  : d
-              ),
+              content: s.content.map((item, j) => {
+                if (j !== contentIdx) return item
+                if (item.type === "dialogue") {
+                  const updated = { ...item, [field]: value }
+                  if (field === "characterId") {
+                    updated.characterName = charList.find((c) => c.id === value)?.name || ""
+                  }
+                  return updated
+                }
+                return { ...item, [field]: value }
+              }),
             }
           : s
       )
     )
   }
 
-  function removeDialogue(sceneIdx: number, dialogueIdx: number) {
+  function removeContent(sceneIdx: number, contentIdx: number) {
     setScenes((prev) =>
       prev.map((s, i) =>
         i === sceneIdx
-          ? { ...s, dialogues: s.dialogues.filter((_, j) => j !== dialogueIdx).map((d, j) => ({ ...d, lineOrder: j })) }
+          ? {
+              ...s,
+              content: s.content.filter((_, j) => j !== contentIdx).map((item, j) => {
+                if (item.type !== "dialogue") return item
+                const dialogueIndex = s.content.filter((c, k) => c.type === "dialogue" && k < j).length
+                return { ...item, lineOrder: dialogueIndex }
+              }),
+            }
           : s
       )
     )
@@ -235,39 +265,58 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">دیالوگ‌ها</h4>
-                    {canEdit && <Button onClick={() => addDialogue(si)} size="sm" variant="ghost"><Plus className="ml-1 h-3 w-3" />افزودن</Button>}
+                    <h4 className="text-sm font-medium">محتوای صحنه</h4>
+                    {canEdit && (
+                      <div className="flex gap-1">
+                        <Button onClick={() => addDialogue(si)} size="sm" variant="ghost"><Plus className="ml-1 h-3 w-3" />دیالوگ</Button>
+                        <Button onClick={() => addDescription(si)} size="sm" variant="ghost"><Plus className="ml-1 h-3 w-3" />توضیح</Button>
+                      </div>
+                    )}
                   </div>
-                  {scene.dialogues.map((dialogue, di) => (
-                    <div key={di} className="flex items-start gap-2 rounded-md border p-2">
+                  {scene.content.map((item, ci) => (
+                    <div key={ci} className={`flex items-start gap-2 rounded-md border p-2 ${item.type === "description" ? "bg-amber-50 border-amber-200" : ""}`}>
                       {canEdit ? (
-                        <>
-                          <select
-                            value={dialogue.characterId}
-                            onChange={(e) => updateDialogue(si, di, "characterId", e.target.value)}
-                            className="w-28 rounded border border-neutral-300 bg-white px-2 py-1 text-sm"
-                          >
-                            <option value="">انتخاب...</option>
-                            {charList.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
+                        item.type === "dialogue" ? (
+                          <>
+                            <select
+                              value={item.characterId}
+                              onChange={(e) => updateContent(si, ci, "characterId", e.target.value)}
+                              className="w-28 rounded border border-neutral-300 bg-white px-2 py-1 text-sm"
+                            >
+                              <option value="">انتخاب...</option>
+                              {charList.map((c) => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            <textarea
+                              value={item.text}
+                              onChange={(e) => updateContent(si, ci, "text", e.target.value)}
+                              rows={1}
+                              className="flex-1 rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm"
+                              placeholder="متن دیالوگ"
+                            />
+                          </>
+                        ) : (
                           <textarea
-                            value={dialogue.text}
-                            onChange={(e) => updateDialogue(si, di, "text", e.target.value)}
-                            rows={1}
-                            className="flex-1 rounded border border-neutral-300 bg-transparent px-2 py-1 text-sm"
-                            placeholder="متن دیالوگ"
+                            value={item.text}
+                            onChange={(e) => updateContent(si, ci, "text", e.target.value)}
+                            rows={2}
+                            className="flex-1 rounded border border-amber-300 bg-transparent px-2 py-1 text-sm italic"
+                            placeholder="توضیح صحنه (حرکت بازیگر، نور، صدا و...)"
                           />
-                          <Button variant="ghost" size="sm" onClick={() => removeDialogue(si, di)}>
-                            <Trash2 className="h-3 w-3 text-red-500" />
-                          </Button>
+                        )
+                      ) : item.type === "dialogue" ? (
+                        <>
+                          <Badge className="w-20 shrink-0 justify-center">{item.characterName}</Badge>
+                          <p className="text-sm">{item.text}</p>
                         </>
                       ) : (
-                        <>
-                          <Badge className="w-20 shrink-0 justify-center">{dialogue.characterName}</Badge>
-                          <p className="text-sm">{dialogue.text}</p>
-                        </>
+                        <p className="text-sm italic text-amber-700">{item.text}</p>
+                      )}
+                      {canEdit && (
+                        <Button variant="ghost" size="sm" onClick={() => removeContent(si, ci)}>
+                          <Trash2 className="h-3 w-3 text-red-500" />
+                        </Button>
                       )}
                     </div>
                   ))}
