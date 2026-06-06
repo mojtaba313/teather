@@ -3,9 +3,9 @@ import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { AppLayout } from "@/src/components/AppLayout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
-import { Badge } from "@/src/components/ui/Badge"
 import { revalidatePath } from "next/cache"
 import { hasAnyRole } from "@/src/lib/roles"
+import type { Character, Casting, User } from "@prisma/client"
 
 async function assignActor(formData: FormData) {
   "use server"
@@ -68,7 +68,7 @@ export default async function CastingPage({ params }: { params: Promise<{ id: st
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {characters.map((char) => {
+            {characters.map((char: Character & { castings: (Casting & { actor: User })[] }) => {
               const casting = char.castings[0]
               return (
                 <Card key={char.id}>
