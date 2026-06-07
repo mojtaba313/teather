@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
 import { Badge } from "@/src/components/ui/Badge"
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save, ArrowLeft, FileText, Wand2 } from "lucide-react"
+import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save, ArrowLeft, FileText, Wand2, Lock, Eye, RefreshCw, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { acquireScriptLock, releaseScriptLock, heartbeatScriptLock, persistScript } from "@/src/actions/script"
 
 interface Character {
   id: string
@@ -40,7 +41,7 @@ type ScriptContentItem = ScriptDialogue | ScriptDescription
 
 interface ScriptEditorProps {
   projectId: string
-  script: { id: string; contentJson: any } | null
+  script: { id: string; contentJson: unknown } | null
   characters: Character[]
   canEdit: boolean
 }
@@ -48,10 +49,23 @@ interface ScriptEditorProps {
 export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptEditorProps) {
   const router = useRouter()
   const [scenes, setScenes] = useState<ScriptScene[]>(() => {
-    if (script?.contentJson?.scenes) {
-      return script.contentJson.scenes.map((s: any) => ({
+    const json = script?.contentJson as Record<string, unknown> | null
+    const rawScenes = json?.scenes as Array<Record<string, unknown>> | undefined
+    if (rawScenes) {
+      return rawScenes.map((s) => ({
         ...s,
-        content: s.content || (s.dialogues || []).map((d: any, i: number) => ({ ...d, type: "dialogue" as const, lineOrder: d.lineOrder ?? i })),
+        orderIndex: s.orderIndex as number,
+        title: s.title as string,
+        setting: (s.setting as string) ?? "",
+        timeOfDay: (s.timeOfDay as string) ?? "",
+        summary: (s.summary as string) ?? "",
+        content: (s.content as ScriptContentItem[]) || ((s.dialogues as Array<Record<string, unknown>>) || []).map((d, i) => ({
+          type: "dialogue" as const,
+          characterId: d.characterId as string,
+          characterName: d.characterName as string,
+          text: d.text as string,
+          lineOrder: (d.lineOrder as number) ?? i,
+        })),
       }))
     }
     return []
@@ -62,6 +76,148 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   const [charList] = useState(characters)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragContent, setDragContent] = useState<{ sceneIdx: number; contentIdx: number } | null>(null)
+  const [hasLock, setHasLock] = useState(false)
+  const [lockedByName, setLockedByName] = useState("")
+  const scriptId = script?.id
+  const [lockPending, setLockPending] = useState(canEdit && !!scriptId)
+  const [remoteScenes, setRemoteScenes] = useState<ScriptScene[] | null>(null)
+  const hasLockRef = useRef(false)
+  const scenesRef = useRef(scenes)
+  useEffect(() => { scenesRef.current = scenes }, [scenes])
+  const [elapsedText, setElapsedText] = useState("")
+  const lockAcquiredAtRef = useRef(0)
+
+  function formatElapsed(acquiredAt: number): string {
+    const seconds = Math.floor((Date.now() - acquiredAt) / 1000)
+    if (seconds < 60) return "کمتر از یک دقیقه"
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes} دقیقه`
+    const hours = Math.floor(minutes / 60)
+    return `${hours} ساعت و ${minutes % 60} دقیقه`
+  }
+
+  const editable = canEdit && hasLock
+
+  // acquire lock on mount
+  useEffect(() => {
+    if (!canEdit || !scriptId) return
+
+    let cancelled = false
+
+    acquireScriptLock(scriptId).then((result) => {
+      if (cancelled) return
+      if (result.locked) {
+        hasLockRef.current = true
+        setHasLock(true)
+        lockAcquiredAtRef.current = Date.now()
+        setElapsedText(formatElapsed(lockAcquiredAtRef.current))
+      } else {
+        setLockedByName(result.lockedBy ?? "")
+        if (result.lockedAt) {
+          lockAcquiredAtRef.current = new Date(result.lockedAt).getTime()
+          setElapsedText(formatElapsed(lockAcquiredAtRef.current))
+        }
+      }
+      setLockPending(false)
+    })
+
+    return () => {
+      cancelled = true
+      if (hasLockRef.current && scriptId) {
+        releaseScriptLock(scriptId)
+      }
+    }
+  }, [canEdit, scriptId])
+
+  // elapsed time ticker
+  useEffect(() => {
+    if (!lockAcquiredAtRef.current) return
+    const interval = setInterval(() => {
+      setElapsedText(formatElapsed(lockAcquiredAtRef.current))
+    }, 1_000)
+    return () => clearInterval(interval)
+  }, [hasLock, lockedByName])
+
+  // heartbeat
+  useEffect(() => {
+    if (!hasLock || !scriptId) return
+    const interval = setInterval(() => {
+      heartbeatScriptLock(scriptId)
+    }, 20_000)
+    return () => clearInterval(interval)
+  }, [hasLock, scriptId])
+
+  // auto-save debounce
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!hasLock || !scriptId) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      setSaving(true)
+      await persistScript(scriptId, { scenes: scenesRef.current })
+      setSaving(false)
+    }, 5_000)
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    }
+  }, [scenes, hasLock, scriptId])
+
+  // polling for read-only viewers
+  useEffect(() => {
+    if (hasLock || !canEdit || lockPending) return
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/script`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.contentJson?.scenes) {
+          setRemoteScenes((data.contentJson.scenes as Array<Record<string, unknown>>).map((s) => ({
+            ...s,
+            orderIndex: s.orderIndex as number,
+            title: s.title as string,
+            setting: (s.setting as string) ?? "",
+            timeOfDay: (s.timeOfDay as string) ?? "",
+            summary: (s.summary as string) ?? "",
+            content: (s.content as ScriptContentItem[]) || [],
+          })))
+        }
+        // If the lock is now free, re-attempt acquisition
+        if (!data.lockedBy) {
+          if (scriptId) {
+            const result = await acquireScriptLock(scriptId)
+            if (result.locked) {
+              hasLockRef.current = true
+              setHasLock(true)
+              setLockedByName("")
+              setRemoteScenes(null)
+              lockAcquiredAtRef.current = Date.now()
+              setElapsedText(formatElapsed(lockAcquiredAtRef.current))
+            } else {
+              setLockedByName(result.lockedBy ?? "")
+              if (result.lockedAt) {
+                lockAcquiredAtRef.current = new Date(result.lockedAt).getTime()
+                setElapsedText(formatElapsed(lockAcquiredAtRef.current))
+              }
+            }
+          }
+        } else if (data.lockedBy.name) {
+          setLockedByName(data.lockedBy.name)
+          if (data.lockedAt) {
+            lockAcquiredAtRef.current = new Date(data.lockedAt).getTime()
+            setElapsedText(formatElapsed(lockAcquiredAtRef.current))
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const interval = setInterval(poll, 5_000)
+    return () => clearInterval(interval)
+  }, [hasLock, canEdit, lockPending, projectId, scriptId])
+
+  const displayScenes = remoteScenes ?? scenes
 
   function toggleScene(idx: number) {
     setExpandedScenes((prev) => {
@@ -112,7 +268,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     )
   }
 
-  function updateScene(idx: number, field: string, value: any) {
+  function updateScene(idx: number, field: string, value: unknown) {
     setScenes((prev) => prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s)))
   }
 
@@ -121,12 +277,12 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
       prev.map((s, i) =>
         i === sceneIdx
           ? {
-              ...s,
-              content: [
-                ...s.content,
-                { type: "dialogue" as const, characterId: charList[0]?.id || "", characterName: charList[0]?.name || "", text: "", lineOrder: s.content.filter((c) => c.type === "dialogue").length },
-              ],
-            }
+            ...s,
+            content: [
+              ...s.content,
+              { type: "dialogue" as const, characterId: charList[0]?.id || "", characterName: charList[0]?.name || "", text: "", lineOrder: s.content.filter((c) => c.type === "dialogue").length },
+            ],
+          }
           : s
       )
     )
@@ -142,24 +298,24 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     )
   }
 
-  function updateContent(sceneIdx: number, contentIdx: number, field: string, value: any) {
+  function updateContent(sceneIdx: number, contentIdx: number, field: string, value: unknown) {
     setScenes((prev) =>
       prev.map((s, i) =>
         i === sceneIdx
           ? {
-              ...s,
-              content: s.content.map((item, j) => {
-                if (j !== contentIdx) return item
-                if (item.type === "dialogue") {
-                  const updated = { ...item, [field]: value }
-                  if (field === "characterId") {
-                    updated.characterName = charList.find((c) => c.id === value)?.name || ""
-                  }
-                  return updated
+            ...s,
+            content: s.content.map((item, j) => {
+              if (j !== contentIdx) return item
+              if (item.type === "dialogue") {
+                const updated = { ...item, [field]: value }
+                if (field === "characterId") {
+                  updated.characterName = charList.find((c) => c.id === value)?.name || ""
                 }
-                return { ...item, [field]: value }
-              }),
-            }
+                return updated
+              }
+              return { ...item, [field]: value }
+            }),
+          }
           : s
       )
     )
@@ -170,13 +326,13 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
       prev.map((s, i) =>
         i === sceneIdx
           ? {
-              ...s,
-              content: s.content.filter((_, j) => j !== contentIdx).map((item, j) => {
-                if (item.type !== "dialogue") return item
-                const dialogueIndex = s.content.filter((c, k) => c.type === "dialogue" && k < j).length
-                return { ...item, lineOrder: dialogueIndex }
-              }),
-            }
+            ...s,
+            content: s.content.filter((_, j) => j !== contentIdx).map((item, j) => {
+              if (item.type !== "dialogue") return item
+              const dialogueIndex = s.content.filter((c, k) => c.type === "dialogue" && k < j).length
+              return { ...item, lineOrder: dialogueIndex }
+            }),
+          }
           : s
       )
     )
@@ -194,15 +350,24 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     }
   }
 
-  async function saveScript() {
+  const handleManualSave = useCallback(async () => {
+    if (!scriptId) return
     setSaving(true)
-    await fetch(`/api/projects/${projectId}/script`, {
-      method: "PUT",
-      body: JSON.stringify({ contentJson: { scenes } }),
-    })
+    await persistScript(scriptId, { scenes })
     setSaving(false)
     router.refresh()
-  }
+  }, [scriptId, scenes, router])
+
+  const handleEndEditing = useCallback(async () => {
+    if (!scriptId) return
+    await persistScript(scriptId, { scenes })
+    hasLockRef.current = false
+    setHasLock(false)
+    lockAcquiredAtRef.current = 0
+    setElapsedText("")
+    await releaseScriptLock(scriptId)
+    router.back()
+  }, [scriptId, scenes, router])
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -215,10 +380,15 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
           بازگشت به پروژه
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">فیلمنامه</h1>
-          {canEdit && (
-            <div className="flex gap-2">
-              <Button onClick={saveScript} disabled={saving} className="gap-2">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">فیلمنامه</h1>
+            {lockPending && canEdit && (
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--muted)] border-t-transparent" />
+            )}
+          </div>
+          <div className="flex gap-2">
+            {editable && (
+              <Button onClick={handleManualSave} disabled={saving} variant="outline" size="sm" className="gap-2">
                 {saving ? (
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 ) : (
@@ -226,16 +396,60 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                 )}
                 {saving ? "در حال ذخیره..." : "ذخیره"}
               </Button>
-              <Button onClick={addScene} variant="outline" className="gap-2">
+            )}
+            {editable && (
+              <Button onClick={addScene} variant="outline" size="sm" className="gap-2">
                 <Plus className="h-4 w-4" />
                 صحنه جدید
               </Button>
-            </div>
-          )}
+            )}
+            {editable && (
+              <Button onClick={handleEndEditing} variant="outline" size="sm" className="gap-2 text-[var(--red-text)] border-[var(--red-text)]/30 hover:bg-[var(--red-bg)]">
+                <LogOut className="h-4 w-4" />
+                پایان ویرایش
+              </Button>
+            )}
+          </div>
         </div>
+
+        {canEdit && !lockPending && !hasLock && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
+            <Lock className="h-4 w-4 shrink-0" />
+            <span>
+              <strong>{lockedByName}</strong> در حال ویرایش فیلمنامه است ({elapsedText}). شما در حالت فقط‌خواندن هستید.
+            </span>
+          </div>
+        )}
+
+        {editable && (
+          <div className="mt-3 flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+              <RefreshCw className={`h-3 w-3 ${saving ? "animate-spin" : ""}`} />
+              {saving ? "در حال ذخیره..." : "ذخیره خودکار فعال"}
+            </div>
+            <span className="text-xs text-[var(--muted)]">|</span>
+            <span className="text-xs text-[var(--muted)]">
+              {elapsedText} در حال ویرایش
+            </span>
+          </div>
+        )}
+
+        {remoteScenes && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
+            <Eye className="h-3 w-3" />
+            در حال نمایش آخرین تغییرات
+          </div>
+        )}
       </div>
 
-      {canEdit && (
+      {!hasLock && editable === false && canEdit === false && (
+        <div className="flex items-center gap-2 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
+          <Eye className="h-4 w-4 shrink-0" />
+          <span>شما دسترسی ویرایش فیلمنامه را ندارید</span>
+        </div>
+      )}
+
+      {editable && (
         <Card className="animate-fade-in-1">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -261,7 +475,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
         </Card>
       )}
 
-      {scenes.length === 0 && (
+      {displayScenes.length === 0 && (
         <Card className="animate-fade-in-2">
           <CardContent className="py-12 md:py-16 text-center">
             <div className="flex flex-col items-center gap-3">
@@ -275,11 +489,11 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
       )}
 
       <div className="space-y-4">
-        {scenes.map((scene, si) => (
+        {displayScenes.map((scene, si) => (
           <Card
             key={si}
-            draggable={canEdit}
-            onDragStart={() => canEdit && setDragIdx(si)}
+            draggable={editable}
+            onDragStart={() => editable && setDragIdx(si)}
             onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.opacity = "0.5" }}
             onDragLeave={(e) => { e.currentTarget.style.opacity = "1" }}
             onDrop={(e) => {
@@ -294,7 +508,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
             <CardHeader className="cursor-pointer" onClick={() => toggleScene(si)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
-                  {canEdit && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-[var(--muted-foreground)]" />}
+                  {editable && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-[var(--muted-foreground)]" />}
                   <div className="flex items-center gap-2 min-w-0">
                     {expandedScenes.has(si) ? (
                       <ChevronUp className="h-4 w-4 shrink-0 text-[var(--muted)]" />
@@ -302,7 +516,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                       <ChevronDown className="h-4 w-4 shrink-0 text-[var(--muted)]" />
                     )}
                     <CardTitle className="text-base truncate">
-                      {canEdit ? (
+                      {editable ? (
                         <Input
                           value={scene.title}
                           onChange={(e) => updateScene(si, "title", e.target.value)}
@@ -318,7 +532,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                     </span>
                   </div>
                 </div>
-                {canEdit && (
+                {editable && (
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeScene(si) }}>
                     <Trash2 className="h-4 w-4 text-[var(--red-text)]" />
                   </Button>
@@ -327,7 +541,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
             </CardHeader>
             {expandedScenes.has(si) && (
               <CardContent className="space-y-4">
-                {canEdit && (
+                {editable && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-[var(--muted)] mb-1">موقعیت</label>
@@ -347,14 +561,14 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                     </div>
                   </div>
                 )}
-                {!canEdit && (scene.setting || scene.timeOfDay) && (
+                {!editable && (scene.setting || scene.timeOfDay) && (
                   <p className="text-sm text-[var(--muted)]">
                     {[scene.setting, scene.timeOfDay].filter(Boolean).join(" - ")}
                   </p>
                 )}
                 <div>
                   <label className="block text-xs font-medium text-[var(--muted)] mb-1">خلاصه</label>
-                  {canEdit ? (
+                  {editable ? (
                     <textarea
                       value={scene.summary}
                       onChange={(e) => updateScene(si, "summary", e.target.value)}
@@ -370,7 +584,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">محتوای صحنه</h4>
-                    {canEdit && (
+                    {editable && (
                       <div className="flex gap-1">
                         <Button onClick={() => addDialogue(si)} size="sm" variant="ghost" className="gap-1">
                           <Plus className="h-3 w-3" />
@@ -386,8 +600,8 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                   {scene.content.map((item, ci) => (
                     <div
                       key={ci}
-                      draggable={canEdit}
-                      onDragStart={() => canEdit && setDragContent({ sceneIdx: si, contentIdx: ci })}
+                      draggable={editable}
+                      onDragStart={() => editable && setDragContent({ sceneIdx: si, contentIdx: ci })}
                       onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.opacity = "0.4" }}
                       onDragLeave={(e) => { e.currentTarget.style.opacity = "1" }}
                       onDrop={(e) => {
@@ -397,16 +611,15 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                         }
                         setDragContent(null)
                       }}
-                      className={`flex items-start gap-2 rounded-xl border p-3 transition-all duration-200 ${
-                        item.type === "description"
+                      className={`flex items-start gap-2 rounded-xl border p-3 transition-all duration-200 ${item.type === "description"
                           ? "border-[var(--amber-border)] bg-[var(--amber-bg)]"
                           : "border-[var(--card-border)] bg-[var(--card-bg)]"
-                      } ${canEdit ? "cursor-grab" : ""}`}
+                        } ${editable ? "cursor-grab" : ""}`}
                     >
-                      {canEdit && (
+                      {editable && (
                         <GripVertical className="mt-1.5 h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
                       )}
-                      {canEdit ? (
+                      {editable ? (
                         item.type === "dialogue" ? (
                           <>
                             <div className="w-full sm:w-auto">
@@ -446,7 +659,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                       ) : (
                         <p className="text-sm italic text-[var(--amber-text)]">{item.text}</p>
                       )}
-                      {canEdit && (
+                      {editable && (
                         <Button variant="ghost" size="sm" onClick={() => removeContent(si, ci)}>
                           <Trash2 className="h-3 w-3 text-[var(--red-text)]" />
                         </Button>

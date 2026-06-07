@@ -1,7 +1,7 @@
 "use client"
 
 import { Menu, LogOut, Clapperboard } from "lucide-react"
-import { DarkModeToggle } from "./DarkModeToggle"
+import { signOutAction } from "@/src/actions/auth"
 
 export function MobileMenuButton() {
   return (
@@ -43,7 +43,7 @@ export function MobileMenuPanel({ userName }: { userName: string }) {
           <p className="text-xs text-[var(--muted)]">پنل کاربری</p>
         </div>
       </div>
-      <form action="/api/auth/signout" method="post" className="mt-auto">
+      <form action={signOutAction} className="mt-auto">
         <button
           type="submit"
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--badge-bg)] px-4 py-3 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]"

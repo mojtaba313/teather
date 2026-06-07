@@ -12,6 +12,10 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@liveblocks/client": "^3.19.4",
+    "@liveblocks/node": "^3.19.4",
+    "@liveblocks/react": "^3.19.4",
+    "@liveblocks/yjs": "^3.19.4",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@prisma/config": "^7.8.0",
@@ -29,6 +33,7 @@
     "react-dom": "19.2.4",
     "react-hook-form": "^7.77.0",
     "tailwind-merge": "^3.6.0",
+    "yjs": "^13.6.31",
     "zod": "^4.4.3"
   },
   "devDependencies": {

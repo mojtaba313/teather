@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { Clapperboard, LogOut } from "lucide-react"
 import { DarkModeToggle } from "./DarkModeToggle"
 import { MobileMenuButton, MobileMenuPanel } from "./MobileMenu"
+import { signOutAction } from "@/src/actions/auth"
 
 export async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -35,7 +36,7 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
               <span className="text-sm text-[var(--muted)]">{session.user.name}</span>
               <div className="mx-2 h-5 w-px bg-[var(--input-border)]" />
-              <form action="/api/auth/signout" method="post">
+              <form action={signOutAction}>
                 <button
                   type="submit"
                   className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-[var(--muted)] transition-all duration-200 hover:bg-[var(--badge-bg)] hover:text-[var(--foreground)]"

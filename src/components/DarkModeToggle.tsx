@@ -2,13 +2,13 @@
 
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 
 export function DarkModeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => { startTransition(() => setMounted(true)) }, [])
 
   const isDark = mounted && (theme === "dark" || resolvedTheme === "dark")
 

@@ -38,6 +38,7 @@ model User {
   memberships    ProjectMember[]
   castings       Casting[]
   attendances    Attendance[]
+  lockedScripts  Script[]
 }
 
 model Account {
@@ -103,12 +104,15 @@ model ProjectMember {
 }
 
 model Script {
-  id          String @id @default(cuid())
-  projectId   String @unique
-  contentJson Json
+  id             String    @id @default(cuid())
+  projectId      String    @unique
+  contentJson    Json
+  lockedByUserId String?
+  lockedAt       DateTime?
 
-  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  scenes  Scene[]
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lockedByUser User?   @relation(fields: [lockedByUserId], references: [id], onDelete: SetNull)
+  scenes       Scene[]
 }
 
 model Scene {
