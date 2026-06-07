@@ -8,6 +8,8 @@ import { Input } from "@/src/components/ui/Input"
 import { Badge } from "@/src/components/ui/Badge"
 import { hasAnyRole } from "@/src/lib/roles"
 import { revalidatePath } from "next/cache"
+import { Settings, UserPlus, Users, CheckCircle, XCircle, Shield, UserMinus, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 
 const roleLabels: Record<string, string> = {
   writer: "نویسنده",
@@ -17,7 +19,23 @@ const roleLabels: Record<string, string> = {
   viewer: "بیننده",
 }
 
+const roleColors: Record<string, string> = {
+  writer: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-900/10 dark:text-purple-400",
+  director: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/10 dark:text-blue-400",
+  actor: "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/10 dark:text-green-400",
+  stage_manager: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-400",
+  viewer: "border-neutral-200 bg-neutral-50 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800/30 dark:text-neutral-400",
+}
+
 const allRoles = ["writer", "director", "actor", "stage_manager", "viewer"]
+
+const statusLabels: Record<string, string> = {
+  IDEA: "ایده",
+  PRE_PRODUCTION: "پیش‌تولید",
+  REHEARSAL: "تمرین",
+  PERFORMANCE: "اجرا",
+  ARCHIVED: "بایگانی",
+}
 
 async function createUser(formData: FormData) {
   "use server"
@@ -159,17 +177,28 @@ export default async function SettingsPage(props: {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-2xl space-y-8">
-        <h1 className="text-2xl font-bold">تنظیمات پروژه</h1>
+      <div className="mx-auto max-w-2xl space-y-6 md:space-y-8">
+        <div className="animate-fade-in">
+          <Link
+            href={`/projects/${id}`}
+            className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            بازگشت به پروژه
+          </Link>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">تنظیمات پروژه</h1>
+        </div>
 
         {success && (
-          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="flex items-center gap-2 rounded-xl border border-[var(--green-border)] bg-[var(--green-bg)] px-4 py-3 text-sm text-[var(--green-text)] animate-fade-in-down">
+            <CheckCircle className="h-4 w-4 shrink-0" />
             {success === "created" && "کاربر ساخته شد و به پروژه اضافه گردید."}
             {success === "added" && "عضو جدید با موفقیت اضافه شد."}
           </div>
         )}
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="flex items-center gap-2 rounded-xl border border-[var(--red-border)] bg-[var(--red-bg)] px-4 py-3 text-sm text-[var(--red-text)] animate-fade-in-down">
+            <XCircle className="h-4 w-4 shrink-0" />
             {error === "exists" && "این نام کاربری قبلاً ثبت شده است."}
             {error === "notfound" && "کاربری با این نام کاربری یافت نشد."}
             {error === "already_member" && "این کاربر قبلاً عضو پروژه است."}
@@ -178,133 +207,196 @@ export default async function SettingsPage(props: {
           </div>
         )}
 
-        <Card>
-          <CardHeader><CardTitle>وضعیت پروژه</CardTitle></CardHeader>
-          <CardContent>
-            <form action={saveStatus} className="flex gap-3 items-end">
-              <input type="hidden" name="projectId" value={id} />
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-1.5">وضعیت</label>
-                <select name="status" defaultValue={project.status} className="w-full rounded-xl border border-neutral-200 bg-white/50 px-3 py-2 text-sm shadow-sm backdrop-blur-sm" disabled={!canManage}>
-                  {Object.entries(statusLabels).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </div>
-              {canManage && <Button type="submit" size="sm">ذخیره</Button>}
-            </form>
-          </CardContent>
-        </Card>
-
-        {member.roles.includes("director") && (
+        <div className="space-y-4 md:space-y-6 animate-fade-in-1">
+          {/* Status */}
           <Card>
             <CardHeader>
-              <CardTitle>کاربر جدید</CardTitle>
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-[var(--muted)]" />
+                <CardTitle>وضعیت پروژه</CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
-              <form action={createUser} className="space-y-3">
+              <form action={saveStatus} className="flex flex-col sm:flex-row gap-3 items-end">
                 <input type="hidden" name="projectId" value={id} />
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">نام و نام خانوادگی</label>
-                  <Input name="name" required placeholder="مثلاً: علی رضایی" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">نام کاربری</label>
-                  <Input name="username" required placeholder="مثلاً: ali_rezayi" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">رمز عبور</label>
-                  <Input name="password" type="password" required minLength={6} placeholder="حداقل ۶ کاراکتر" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">نقش‌ها در پروژه</label>
-                  <div className="flex flex-wrap gap-3">
-                    {allRoles.map((role) => (
-                      <label key={role} className="flex items-center gap-1.5 text-sm">
-                        <input type="checkbox" name="roles" value={role} defaultChecked={role === "viewer"} className="rounded border-neutral-300" />
-                        {roleLabels[role]}
-                      </label>
+                <div className="flex-1 w-full">
+                  <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">وضعیت</label>
+                  <select
+                    name="status"
+                    defaultValue={project.status}
+                    disabled={!canManage}
+                    className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--select-bg)] px-3 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)] focus:border-[var(--input-focus-border)]"
+                  >
+                    {Object.entries(statusLabels).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
                     ))}
-                  </div>
+                  </select>
                 </div>
-                <Button type="submit" size="sm">ایجاد کاربر و افزودن به پروژه</Button>
+                {canManage && <Button type="submit" size="sm" className="w-full sm:w-auto">ذخیره</Button>}
               </form>
             </CardContent>
           </Card>
-        )}
 
-        {member.roles.includes("director") && otherUsers.length > 0 && (
-          <Card>
-            <CardHeader><CardTitle>افزودن کاربران موجود</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {otherUsers.map((u) => (
-                <form key={u.id} action={addMember} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-white/40 p-3 transition-colors hover:bg-white/80">
+          {/* Create new user */}
+          {member.roles.includes("director") && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-[var(--muted)]" />
+                  <CardTitle>کاربر جدید</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form action={createUser} className="space-y-3">
                   <input type="hidden" name="projectId" value={id} />
-                  <input type="hidden" name="username" value={u.username} />
-                  <div>
-                    <p className="text-sm font-medium">{u.name}</p>
-                    <p className="text-xs text-neutral-500">@{u.username}</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">نام و نام خانوادگی</label>
+                      <Input name="name" required placeholder="مثلاً: علی رضایی" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">نام کاربری</label>
+                      <Input name="username" required placeholder="مثلاً: ali_rezayi" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-wrap gap-1">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">رمز عبور</label>
+                    <Input name="password" type="password" required minLength={6} placeholder="حداقل ۶ کاراکتر" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">نقش‌ها در پروژه</label>
+                    <div className="flex flex-wrap gap-2">
                       {allRoles.map((role) => (
-                        <label key={role} className="flex items-center gap-1 text-xs">
-                          <input type="checkbox" name="roles" value={role} defaultChecked={role === "viewer"} className="rounded border-neutral-300" />
-                          <span className="text-neutral-600">{roleLabels[role]}</span>
+                        <label
+                          key={role}
+                          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-1.5 text-sm transition-all duration-200 hover:border-[var(--accent)] has-checked:border-[var(--accent)] has-checked:bg-[var(--badge-bg)]"
+                        >
+                          <input
+                            type="checkbox"
+                            name="roles"
+                            value={role}
+                            defaultChecked={role === "viewer"}
+                            className="rounded border-[var(--input-border)] text-[var(--accent)] focus:ring-[var(--input-focus-ring)]"
+                          />
+                          {roleLabels[role]}
                         </label>
                       ))}
                     </div>
-                    <Button type="submit" size="sm" variant="secondary">افزودن</Button>
                   </div>
+                  <Button type="submit" size="sm" className="gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    ایجاد کاربر و افزودن به پروژه
+                  </Button>
                 </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Add existing users */}
+          {member.roles.includes("director") && otherUsers.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-[var(--muted)]" />
+                  <CardTitle>افزودن کاربران موجود</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {otherUsers.map((u) => (
+                  <form
+                    key={u.id}
+                    action={addMember}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 transition-all duration-200 hover:shadow-md"
+                  >
+                    <input type="hidden" name="projectId" value={id} />
+                    <input type="hidden" name="username" value={u.username} />
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--badge-bg)] text-sm font-medium text-[var(--muted)]">
+                        {u.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{u.name}</p>
+                        <p className="text-xs text-[var(--muted-foreground)]">@{u.username}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-wrap gap-1">
+                        {allRoles.map((role) => (
+                          <label
+                            key={role}
+                            className="flex cursor-pointer items-center gap-1 rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-1 text-xs transition-all hover:border-[var(--accent)] has-checked:border-[var(--accent)] has-checked:bg-[var(--badge-bg)]"
+                          >
+                            <input
+                              type="checkbox"
+                              name="roles"
+                              value={role}
+                              defaultChecked={role === "viewer"}
+                              className="rounded border-[var(--input-border)] text-[var(--accent)]"
+                            />
+                            {roleLabels[role]}
+                          </label>
+                        ))}
+                      </div>
+                      <Button type="submit" size="sm" variant="secondary">افزودن</Button>
+                    </div>
+                  </form>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Members list */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-[var(--muted)]" />
+                <CardTitle>اعضای پروژه ({project.members.length} نفر)</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {project.members.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 transition-all duration-200 hover:shadow-md"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--badge-bg)] text-sm font-medium text-[var(--muted)]">
+                      {m.user.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{m.user.name}</p>
+                      <p className="text-xs text-[var(--muted-foreground)]">@{m.user.username}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {m.roles.map((role) => (
+                        <Badge key={role} variant="default" className={roleColors[role]}>
+                          {roleLabels[role] || role}
+                        </Badge>
+                      ))}
+                    </div>
+                    {member.roles.includes("director") && m.id !== member.id && (
+                      <form action={removeMember}>
+                        <input type="hidden" name="projectId" value={id} />
+                        <input type="hidden" name="memberId" value={m.id} />
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="sm"
+                          className="text-[var(--red-text)] hover:bg-[var(--red-bg)]"
+                        >
+                          <UserMinus className="h-4 w-4" />
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                </div>
               ))}
             </CardContent>
           </Card>
-        )}
-
-        <Card>
-          <CardHeader><CardTitle>اعضای پروژه ({project.members.length} نفر)</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {project.members.map((m) => (
-              <div key={m.id} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-white/40 p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-sm font-medium text-neutral-600">
-                    {m.user.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{m.user.name}</p>
-                    <p className="text-xs text-neutral-500">@{m.user.username}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-wrap gap-1">
-                    {m.roles.map((role) => (
-                      <Badge key={role}>{roleLabels[role] || role}</Badge>
-                    ))}
-                  </div>
-                  {member.roles.includes("director") && m.id !== member.id && (
-                    <form action={removeMember}>
-                      <input type="hidden" name="projectId" value={id} />
-                      <input type="hidden" name="memberId" value={m.id} />
-                      <Button type="submit" variant="ghost" size="sm" className="text-red-500 hover:text-red-700">
-                        حذف
-                      </Button>
-                    </form>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </AppLayout>
   )
-}
-
-const statusLabels: Record<string, string> = {
-  IDEA: "ایده",
-  PRE_PRODUCTION: "پیش‌تولید",
-  REHEARSAL: "تمرین",
-  PERFORMANCE: "اجرا",
-  ARCHIVED: "بایگانی",
 }

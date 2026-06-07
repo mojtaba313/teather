@@ -1,15 +1,30 @@
 import { cn } from "@/src/lib/utils"
 
-export function Badge({ className, children, variant = "default" }: { className?: string; children: React.ReactNode; variant?: "default" | "outline" | "success" | "warning" | "destructive" }) {
-  const variants: Record<string, string> = {
-    default: "bg-neutral-100 text-neutral-800",
-    outline: "border border-neutral-300 text-neutral-600",
-    success: "bg-green-100 text-green-800",
-    warning: "bg-yellow-100 text-yellow-800",
-    destructive: "bg-red-100 text-red-800",
-  }
+const variantStyles: Record<string, string> = {
+  default: "bg-[var(--badge-bg)] text-[var(--badge-text)]",
+  outline: "border border-[var(--input-border)] text-[var(--muted)]",
+  success: "bg-[var(--green-bg)] border border-[var(--green-border)] text-[var(--green-text)]",
+  warning: "bg-[var(--amber-bg)] border border-[var(--amber-border)] text-[var(--amber-text)]",
+  destructive: "bg-[var(--red-bg)] border border-[var(--red-border)] text-[var(--red-text)]",
+}
+
+export function Badge({
+  className,
+  children,
+  variant = "default",
+}: {
+  className?: string
+  children: React.ReactNode
+  variant?: "default" | "outline" | "success" | "warning" | "destructive"
+}) {
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shadow-sm", variants[variant], className)}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shadow-sm transition-colors duration-200",
+        variantStyles[variant],
+        className
+      )}
+    >
       {children}
     </span>
   )

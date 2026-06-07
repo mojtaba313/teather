@@ -3,6 +3,9 @@ import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { AppLayout } from "@/src/components/AppLayout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
+import { BookOpen, ArrowLeft, Mic } from "lucide-react"
+import Link from "next/link"
+import { Badge } from "@/src/components/ui/Badge"
 
 export default async function MyRolesPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -25,11 +28,25 @@ export default async function MyRolesPage({ params }: { params: Promise<{ id: st
   if (!myCasting) {
     return (
       <AppLayout>
-        <Card>
-          <CardContent className="py-12 text-center text-neutral-500">
-            هنوز نقشی به شما اختصاص داده نشده است
-          </CardContent>
-        </Card>
+        <div className="space-y-6 animate-fade-in">
+          <Link
+            href={`/projects/${id}`}
+            className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            بازگشت به پروژه
+          </Link>
+          <Card>
+            <CardContent className="py-12 md:py-16 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--badge-bg)]">
+                  <BookOpen className="h-7 w-7 text-[var(--muted)]" />
+                </div>
+                <p className="text-[var(--muted)]">هنوز نقشی به شما اختصاص داده نشده است</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </AppLayout>
     )
   }
@@ -42,38 +59,67 @@ export default async function MyRolesPage({ params }: { params: Promise<{ id: st
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">نقش‌های من در {project.title}</h1>
+      <div className="space-y-6 md:space-y-8">
+        <div className="animate-fade-in">
+          <Link
+            href={`/projects/${id}`}
+            className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            بازگشت به پروژه
+          </Link>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            نقش‌های من در {project.title}
+          </h1>
+        </div>
 
-        <Card>
+        <Card className="animate-fade-in-1">
           <CardHeader>
-            <CardTitle>{myCasting.character.name}</CardTitle>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--badge-bg)]">
+                <Mic className="h-5 w-5 text-[var(--muted)]" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">{myCasting.character.name}</CardTitle>
+                {myCasting.character.description && (
+                  <p className="text-sm text-[var(--muted)] mt-1">{myCasting.character.description}</p>
+                )}
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            {myCasting.character.description && (
-              <p className="text-sm text-neutral-500 mb-2">{myCasting.character.description}</p>
-            )}
-          </CardContent>
         </Card>
 
-        <h2 className="text-lg font-semibold">دیالوگ‌های من</h2>
-        {myDialogues.length === 0 ? (
-          <p className="text-sm text-neutral-500">هنوز دیالوگی برای این شخصیت ثبت نشده است</p>
-        ) : (
-          <div className="space-y-4">
-            {myDialogues.map((d) => (
-              <Card key={d.id}>
-                <CardHeader>
-                  <CardTitle className="text-sm">{d.scene.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm">{d.text}</p>
-                  <p className="text-xs text-neutral-400 mt-1">خط {d.lineOrder + 1}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <div className="animate-fade-in-2">
+          <h2 className="text-lg font-semibold mb-4">دیالوگ‌های من</h2>
+          {myDialogues.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-[var(--muted)]">
+                هنوز دیالوگی برای این شخصیت ثبت نشده است
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {myDialogues.map((d) => (
+                <Card key={d.id} className="group hover-lift">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--badge-bg)] text-xs font-mono text-[var(--muted)]">
+                          {d.lineOrder + 1}
+                        </span>
+                        {d.scene.title}
+                      </CardTitle>
+                      <Badge variant="outline">خط {d.lineOrder + 1}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm leading-relaxed">{d.text}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </AppLayout>
   )

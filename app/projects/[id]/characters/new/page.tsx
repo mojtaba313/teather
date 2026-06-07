@@ -5,7 +5,8 @@ import { useState, useRef } from "react"
 import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent } from "@/src/components/ui/Card"
-import { ImageUp } from "lucide-react"
+import { ImageUp, ArrowLeft, Users } from "lucide-react"
+import Link from "next/link"
 
 export default function NewCharacterPage() {
   const router = useRouter()
@@ -61,64 +62,104 @@ export default function NewCharacterPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">شخصیت جدید</h1>
-      <Card>
-        <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">نام شخصیت</label>
-              <Input name="name" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">توضیحات</label>
-              <textarea name="description" rows={3} className="w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">سن</label>
-                <Input name="age" type="number" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">جنسیت</label>
-                <select name="gender" className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm">
-                  <option value="">انتخاب...</option>
-                  <option value="مرد">مرد</option>
-                  <option value="زن">زن</option>
-                  <option value="غیره">غیره</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">تصویر</label>
-              <input
-                ref={fileRef}
-                name="image"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div
-                onClick={() => fileRef.current?.click()}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-neutral-300 p-3 text-sm text-neutral-500 hover:border-neutral-400"
-              >
-                <ImageUp className="h-5 w-5" />
-                {preview ? "تغییر تصویر" : "انتخاب تصویر"}
-              </div>
-              {preview && (
-                <div className="mt-2">
-                  <img src={preview} alt="preview" className="h-24 w-24 rounded-md object-cover" />
+    <div className="relative min-h-screen" dir="rtl">
+      <div className="decorative-blur -top-40 -right-40 h-80 w-80 bg-[var(--blur-circle-1)]" />
+      <div className="decorative-blur -bottom-40 -left-40 h-80 w-80 bg-[var(--blur-circle-2)]" />
+      <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
+        <div className="mx-auto max-w-xl w-full space-y-6 md:space-y-8">
+          <div className="animate-fade-in">
+            <Link
+              href={`/projects/${id}/characters`}
+              className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-4"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              بازگشت به شخصیت‌ها
+            </Link>
+            <h1 className="text-2xl font-bold tracking-tight">شخصیت جدید</h1>
+          </div>
+          <Card className="animate-fade-in-1">
+            <CardContent className="pt-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="rounded-xl border border-[var(--red-border)] bg-[var(--red-bg)] px-4 py-3 text-sm text-[var(--red-text)]">
+                    {error}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">نام شخصیت</label>
+                  <Input name="name" required />
                 </div>
-              )}
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "..." : "ایجاد شخصیت"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">توضیحات</label>
+                  <textarea
+                    name="description"
+                    rows={3}
+                    className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)] focus:border-[var(--input-focus-border)]"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">سن</label>
+                    <Input name="age" type="number" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">جنسیت</label>
+                    <select
+                      name="gender"
+                      className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--select-bg)] px-3 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)]"
+                    >
+                      <option value="">انتخاب...</option>
+                      <option value="مرد">مرد</option>
+                      <option value="زن">زن</option>
+                      <option value="غیره">غیره</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">تصویر</label>
+                  <input
+                    ref={fileRef}
+                    name="image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <div
+                    onClick={() => fileRef.current?.click()}
+                    className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-[var(--input-border)] bg-[var(--input-bg)] p-4 text-sm text-[var(--muted)] transition-all duration-200 hover:border-[var(--accent)] hover:bg-[var(--card-bg)]"
+                  >
+                    <ImageUp className="h-5 w-5" />
+                    {preview ? "تغییر تصویر" : "انتخاب تصویر"}
+                  </div>
+                  {preview && (
+                    <div className="mt-2">
+                      <img
+                        src={preview}
+                        alt="preview"
+                        className="h-24 w-24 rounded-xl object-cover ring-2 ring-[var(--card-border)]"
+                      />
+                    </div>
+                  )}
+                </div>
+                <Button type="submit" disabled={loading} className="w-full gap-2">
+                  {loading ? (
+                    <>
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ...
+                    </>
+                  ) : (
+                    <>
+                      <Users className="h-4 w-4" />
+                      ایجاد شخصیت
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,9 +1,13 @@
-import { signIn } from "@/src/lib/auth"
+import { auth, signIn } from "@/src/lib/auth"
 import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/src/components/ui/Card"
+import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
+  const s = await auth();
+  if (s?.user) redirect('/dashboard')
+  
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md animate-fade-in">

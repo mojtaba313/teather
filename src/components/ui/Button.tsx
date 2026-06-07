@@ -2,12 +2,18 @@ import * as React from "react"
 import { cn } from "@/src/lib/utils"
 
 const variants = {
-  default: "bg-neutral-900/90 text-white shadow-md shadow-neutral-900/10 hover:bg-neutral-900 hover:shadow-lg hover:shadow-neutral-900/20 active:scale-[0.97]",
-  destructive: "bg-red-600/90 text-white shadow-md shadow-red-600/10 hover:bg-red-600 hover:shadow-lg hover:shadow-red-600/20 active:scale-[0.97]",
-  outline: "border border-neutral-200 bg-white/60 shadow-sm hover:bg-white hover:shadow-md active:scale-[0.97]",
-  secondary: "bg-neutral-100/80 text-neutral-900 shadow-sm hover:bg-neutral-100 hover:shadow-md active:scale-[0.97]",
-  ghost: "hover:bg-neutral-100/60 active:scale-[0.97]",
-  link: "text-neutral-900 underline-offset-4 hover:underline",
+  default:
+    "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-md shadow-[var(--card-shadow)] hover:shadow-lg hover:shadow-[var(--card-hover-shadow)] active:scale-[0.97]",
+  destructive:
+    "bg-[var(--destructive)] text-[var(--destructive-foreground)] shadow-md shadow-[var(--card-shadow)] hover:shadow-lg active:scale-[0.97]",
+  outline:
+    "border border-[var(--input-border)] bg-[var(--glass-bg)] shadow-sm hover:bg-[var(--card-bg)] hover:shadow-md active:scale-[0.97]",
+  secondary:
+    "bg-[var(--badge-bg)] text-[var(--foreground)] shadow-sm hover:shadow-md active:scale-[0.97]",
+  ghost:
+    "hover:bg-[var(--badge-bg)] active:scale-[0.97] text-[var(--muted)] hover:text-[var(--foreground)]",
+  link:
+    "text-[var(--foreground)] underline-offset-4 hover:underline",
 } as const
 
 const sizes = {
@@ -27,7 +33,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-400 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+          "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/30 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
           variants[variant],
           sizes[size],
           className

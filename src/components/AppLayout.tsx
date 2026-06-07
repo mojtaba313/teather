@@ -1,7 +1,7 @@
 import { auth } from "@/src/lib/auth"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Clapperboard, LogOut } from "lucide-react"
+import { Clapperboard, LogOut, Menu, X } from "lucide-react"
 import { DarkModeToggle } from "./DarkModeToggle"
 
 export async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -9,29 +9,125 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
   if (!session?.user) redirect("/login")
 
   return (
-    <div className="min-h-screen flex flex-col" dir="rtl">
-      <header className="sticky top-0 z-50 border-b border-white/20 bg-white/60 backdrop-blur-xl shadow-sm shadow-neutral-900/5 dark:border-neutral-800/50 dark:bg-neutral-900/60">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg transition-opacity hover:opacity-70">
-            <Clapperboard className="h-5 w-5" />
-            تیاتر
-          </Link>
-          <div className="flex items-center gap-4">
-            <DarkModeToggle />
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">{session.user.name}</span>
-            <form action="/api/auth/signout" method="post">
-              <button
-                type="submit"
-                className="flex items-center gap-1 text-sm text-neutral-500 transition-colors hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
-              >
-                <LogOut className="h-4 w-4" />
-                خروج
-              </button>
-            </form>
+    <div className="relative min-h-screen" dir="rtl">
+      <div className="decorative-blur -top-40 -right-40 h-80 w-80 bg-[var(--blur-circle-1)]" />
+      <div className="decorative-blur -bottom-40 -left-40 h-80 w-80 bg-[var(--blur-circle-2)]" />
+      <div className="decorative-blur top-1/2 left-1/3 h-60 w-60 bg-[var(--blur-circle-3)]" />
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <MobileHeader userName={session.user.name ?? ""} />
+        <header className="sticky top-0 z-50 hidden md:flex border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-xl shadow-sm">
+          <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-6">
+            <Link
+              href="/dashboard"
+              className="group flex items-center gap-2 text-lg font-bold tracking-tight transition-all duration-200 hover:opacity-80"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm transition-transform duration-200 group-hover:scale-105">
+                <Clapperboard className="h-4 w-4" />
+              </div>
+              <span>تیاتر</span>
+            </Link>
+            <div className="flex items-center gap-3">
+              <DarkModeToggle />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--badge-bg)] text-xs font-medium text-[var(--muted)]">
+                {session.user.name?.charAt(0)}
+              </div>
+              <span className="text-sm text-[var(--muted)]">{session.user.name}</span>
+              <div className="mx-2 h-5 w-px bg-[var(--input-border)]" />
+              <form action="/api/auth/signout" method="post">
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-[var(--muted)] transition-all duration-200 hover:bg-[var(--badge-bg)] hover:text-[var(--foreground)]"
+                >
+                  <LogOut className="h-4 w-4" />
+                  خروج
+                </button>
+              </form>
+            </div>
+          </div>
+        </header>
+        <main className="relative z-10 flex-1 mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8 animate-fade-in">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+async function MobileHeader({ userName }: { userName: string }) {
+  return (
+    <header className="sticky top-0 z-50 flex md:hidden border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-xl shadow-sm">
+      <div className="flex h-14 w-full items-center justify-between px-4">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 text-base font-bold"
+        >
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--accent-foreground)]">
+            <Clapperboard className="h-3.5 w-3.5" />
+          </div>
+          <span>تیاتر</span>
+        </Link>
+        <div className="flex items-center gap-2">
+          <DarkModeToggle />
+          <ClientMenu userName={userName} />
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function ClientMenu({ userName }: { userName: string }) {
+  return (
+    <>
+      <MobileMenuButton />
+      <div
+        id="mobile-menu"
+        className="fixed inset-0 z-50 hidden flex-col bg-[var(--bg-gradient)] p-4 animate-fade-in-down"
+      >
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2 text-base font-bold">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--accent-foreground)]">
+              <Clapperboard className="h-3.5 w-3.5" />
+            </div>
+            <span>تیاتر</span>
+          </div>
+          <MobileMenuButton />
+        </div>
+        <div className="flex items-center gap-3 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-4 mb-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--badge-bg)] text-sm font-medium text-[var(--muted)]">
+            {userName?.charAt(0)}
+          </div>
+          <div>
+            <p className="text-sm font-medium">{userName}</p>
+            <p className="text-xs text-[var(--muted)]">پنل کاربری</p>
           </div>
         </div>
-      </header>
-      <main className="flex-1 mx-auto w-full max-w-7xl p-4 animate-fade-in">{children}</main>
-    </div>
+        <form action="/api/auth/signout" method="post" className="mt-auto">
+          <button
+            type="submit"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--badge-bg)] px-4 py-3 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]"
+          >
+            <LogOut className="h-4 w-4" />
+            خروج از حساب
+          </button>
+        </form>
+      </div>
+    </>
+  )
+}
+
+function MobileMenuButton() {
+  return (
+    <button
+      type="button"
+      className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--badge-bg)] text-[var(--muted)] transition-colors hover:bg-[var(--card-bg)]"
+      onClick={() => {
+        const menu = document.getElementById("mobile-menu")
+        if (menu) menu.classList.toggle("hidden")
+      }}
+      aria-label="منو"
+    >
+      <Menu className="h-4 w-4" />
+    </button>
   )
 }

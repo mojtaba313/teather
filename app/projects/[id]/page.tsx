@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Ca
 import { Badge } from "@/src/components/ui/Badge"
 import { Button } from "@/src/components/ui/Button"
 import { hasAnyRole } from "@/src/lib/roles"
-import { FileText, Users, Clapperboard, Calendar, CalendarCheck, Settings, BookOpen } from "lucide-react"
+import { FileText, Users, Clapperboard, Calendar, CalendarCheck, Settings, BookOpen, ArrowLeft } from "lucide-react"
 
 const statusMap: Record<string, string> = {
   IDEA: "ایده",
@@ -16,6 +16,16 @@ const statusMap: Record<string, string> = {
   PERFORMANCE: "اجرا",
   ARCHIVED: "بایگانی",
 }
+
+const statusVariants: Record<string, "default" | "outline" | "success" | "warning" | "destructive"> = {
+  IDEA: "default",
+  PRE_PRODUCTION: "outline",
+  REHEARSAL: "warning",
+  PERFORMANCE: "success",
+  ARCHIVED: "destructive",
+}
+
+const statIcons = [FileText, Users, Calendar, CalendarCheck]
 
 async function getProject(projectId: string, userId: string) {
   const member = await prisma.projectMember.findUnique({
@@ -42,6 +52,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   const { project, roles } = data
   if (!project) notFound()
+
   const canWrite = hasAnyRole(roles, ["writer", "director"])
   const canDirect = hasAnyRole(roles, ["director", "stage_manager"])
 
@@ -55,21 +66,43 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     { href: `/projects/${id}/settings`, label: "تنظیمات", icon: Settings, enabled: canDirect },
   ]
 
+  const stats = [
+    { label: "شخصیت‌ها", value: project._count.characters, icon: statIcons[0] },
+    { label: "تمرینات", value: project._count.rehearsals, icon: statIcons[1] },
+    { label: "اجراها", value: project._count.performances, icon: statIcons[2] },
+    { label: "اعضا", value: project._count.members, icon: statIcons[3] },
+  ]
+
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{project.title}</h1>
-              <Badge>{statusMap[project.status] || project.status}</Badge>
+      <div className="space-y-6 md:space-y-8">
+        {/* Header */}
+        <div className="animate-fade-in">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            بازگشت به داشبورد
+          </Link>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{project.title}</h1>
+                <Badge variant={statusVariants[project.status] || "default"}>
+                  {statusMap[project.status] || project.status}
+                </Badge>
+              </div>
+              {project.description && (
+                <p className="text-[var(--muted)] mt-1">{project.description}</p>
+              )}
             </div>
-            {project.description && <p className="text-neutral-500 mt-1">{project.description}</p>}
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 border-b pb-4">
-          {tabs.filter(t => t.enabled).map((tab) => (
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2 animate-fade-in-1">
+          {tabs.filter((t) => t.enabled).map((tab) => (
             <Link key={tab.href} href={tab.href}>
               <Button variant="outline" size="sm" className="gap-2">
                 <tab.icon className="h-4 w-4" />
@@ -79,23 +112,21 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           ))}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader><CardTitle className="text-sm text-neutral-500">شخصیت‌ها</CardTitle></CardHeader>
-            <CardContent><p className="text-3xl font-bold">{project._count.characters}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-sm text-neutral-500">تمرینات</CardTitle></CardHeader>
-            <CardContent><p className="text-3xl font-bold">{project._count.rehearsals}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-sm text-neutral-500">اجراها</CardTitle></CardHeader>
-            <CardContent><p className="text-3xl font-bold">{project._count.performances}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-sm text-neutral-500">اعضا</CardTitle></CardHeader>
-            <CardContent><p className="text-3xl font-bold">{project._count.members}</p></CardContent>
-          </Card>
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 animate-fade-in-2">
+          {stats.map((stat, i) => (
+            <Card key={stat.label} className={`animate-fade-in-${i + 3}`}>
+              <CardContent className="p-4 md:p-5 flex items-center gap-3 md:gap-4">
+                <div className="flex h-10 w-10 md:h-12 md:w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--badge-bg)]">
+                  <stat.icon className="h-5 w-5 md:h-6 md:w-6 text-[var(--muted)]" />
+                </div>
+                <div>
+                  <p className="text-xs md:text-sm text-[var(--muted)]">{stat.label}</p>
+                  <p className="text-xl md:text-2xl font-bold">{stat.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </AppLayout>

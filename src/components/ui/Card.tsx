@@ -6,7 +6,8 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
     <div
       ref={ref}
       className={cn(
-        "rounded-2xl border border-white/40 bg-white/70 text-neutral-950 shadow-lg shadow-neutral-900/5 backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:shadow-neutral-900/10",
+        "rounded-2xl border bg-[var(--card-bg)] text-[var(--foreground)] shadow-lg shadow-[var(--card-shadow)] backdrop-blur-xl transition-all duration-300 hover-lift",
+        "border-[var(--card-border)]",
         className
       )}
       {...props}
@@ -17,7 +18,7 @@ Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-5 pb-3", className)} {...props} />
   )
 )
 CardHeader.displayName = "CardHeader"
@@ -31,21 +32,21 @@ CardTitle.displayName = "CardTitle"
 
 const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-sm text-neutral-500", className)} {...props} />
+    <p ref={ref} className={cn("text-sm text-[var(--muted)]", className)} {...props} />
   )
 )
 CardDescription.displayName = "CardDescription"
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
   )
 )
 CardContent.displayName = "CardContent"
 
 const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("flex items-center p-5 pt-0", className)} {...props} />
   )
 )
 CardFooter.displayName = "CardFooter"

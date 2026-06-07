@@ -5,8 +5,9 @@ import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
 import { Badge } from "@/src/components/ui/Badge"
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save, ArrowLeft, FileText, Wand2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 interface Character {
   id: string
@@ -204,32 +205,72 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">فیلمنامه</h1>
-        {canEdit && (
-          <div className="flex gap-2">
-            <Button onClick={saveScript} disabled={saving}>{saving ? "در حال ذخیره..." : "ذخیره"}</Button>
-            <Button onClick={addScene} variant="outline"><Plus className="ml-1 h-4 w-4" />صحنه جدید</Button>
-          </div>
-        )}
+    <div className="space-y-6 md:space-y-8">
+      <div className="animate-fade-in">
+        <Link
+          href={`/projects/${projectId}`}
+          className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-4"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          بازگشت به پروژه
+        </Link>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">فیلمنامه</h1>
+          {canEdit && (
+            <div className="flex gap-2">
+              <Button onClick={saveScript} disabled={saving} className="gap-2">
+                {saving ? (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {saving ? "در حال ذخیره..." : "ذخیره"}
+              </Button>
+              <Button onClick={addScene} variant="outline" className="gap-2">
+                <Plus className="h-4 w-4" />
+                صحنه جدید
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {canEdit && (
-        <Card>
-          <CardHeader><CardTitle className="text-sm">ایجاد شخصیت جدید</CardTitle></CardHeader>
+        <Card className="animate-fade-in-1">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Wand2 className="h-4 w-4 text-[var(--muted)]" />
+              ایجاد شخصیت جدید
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
-              <Input value={newCharName} onChange={(e) => setNewCharName(e.target.value)} placeholder="نام شخصیت" />
-              <Button onClick={addCharacter} size="sm" variant="outline"><Plus className="ml-1 h-4 w-4" />افزودن</Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                value={newCharName}
+                onChange={(e) => setNewCharName(e.target.value)}
+                placeholder="نام شخصیت"
+                className="flex-1"
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCharacter())}
+              />
+              <Button onClick={addCharacter} size="sm" variant="outline" className="gap-2 w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                افزودن
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
       {scenes.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center text-neutral-500">هنوز هیچ صحنه‌ای اضافه نشده است</CardContent>
+        <Card className="animate-fade-in-2">
+          <CardContent className="py-12 md:py-16 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--badge-bg)]">
+                <FileText className="h-7 w-7 text-[var(--muted)]" />
+              </div>
+              <p className="text-[var(--muted)]">هنوز هیچ صحنه‌ای اضافه نشده است</p>
+            </div>
+          </CardContent>
         </Card>
       )}
 
@@ -248,29 +289,38 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
               }
               setDragIdx(null)
             }}
-            className="transition-all duration-200"
+            className={`transition-all duration-200 animate-fade-in-${Math.min(si + 2, 8)}`}
           >
             <CardHeader className="cursor-pointer" onClick={() => toggleScene(si)}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {canEdit && <GripVertical className="h-4 w-4 cursor-grab text-neutral-300 dark:text-neutral-600" />}
-                  {expandedScenes.has(si) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  <CardTitle className="text-base">
-                    {canEdit ? (
-                      <Input
-                        value={scene.title}
-                        onChange={(e) => updateScene(si, "title", e.target.value)}
-                        className="h-7 border-0 p-0 text-base font-semibold focus-visible:ring-0"
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                <div className="flex items-center gap-2 min-w-0">
+                  {canEdit && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-[var(--muted-foreground)]" />}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {expandedScenes.has(si) ? (
+                      <ChevronUp className="h-4 w-4 shrink-0 text-[var(--muted)]" />
                     ) : (
-                      scene.title
+                      <ChevronDown className="h-4 w-4 shrink-0 text-[var(--muted)]" />
                     )}
-                  </CardTitle>
+                    <CardTitle className="text-base truncate">
+                      {canEdit ? (
+                        <Input
+                          value={scene.title}
+                          onChange={(e) => updateScene(si, "title", e.target.value)}
+                          className="h-7 border-0 p-0 text-base font-semibold focus-visible:ring-0 bg-transparent"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        scene.title
+                      )}
+                    </CardTitle>
+                    <span className="text-xs text-[var(--muted-foreground)] shrink-0">
+                      {scene.content.length} آیتم
+                    </span>
+                  </div>
                 </div>
                 {canEdit && (
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeScene(si) }}>
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                    <Trash2 className="h-4 w-4 text-[var(--red-text)]" />
                   </Button>
                 )}
               </div>
@@ -278,28 +328,38 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
             {expandedScenes.has(si) && (
               <CardContent className="space-y-4">
                 {canEdit && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-neutral-500">موقعیت</label>
-                      <Input value={scene.setting} onChange={(e) => updateScene(si, "setting", e.target.value)} placeholder="موقعیت صحنه" />
+                      <label className="block text-xs font-medium text-[var(--muted)] mb-1">موقعیت</label>
+                      <Input
+                        value={scene.setting}
+                        onChange={(e) => updateScene(si, "setting", e.target.value)}
+                        placeholder="موقعیت صحنه"
+                      />
                     </div>
                     <div>
-                      <label className="text-xs text-neutral-500">زمان</label>
-                      <Input value={scene.timeOfDay} onChange={(e) => updateScene(si, "timeOfDay", e.target.value)} placeholder="صبح / شب / ..." />
+                      <label className="block text-xs font-medium text-[var(--muted)] mb-1">زمان</label>
+                      <Input
+                        value={scene.timeOfDay}
+                        onChange={(e) => updateScene(si, "timeOfDay", e.target.value)}
+                        placeholder="صبح / شب / ..."
+                      />
                     </div>
                   </div>
                 )}
                 {!canEdit && (scene.setting || scene.timeOfDay) && (
-                  <p className="text-sm text-neutral-500">{[scene.setting, scene.timeOfDay].filter(Boolean).join(" - ")}</p>
+                  <p className="text-sm text-[var(--muted)]">
+                    {[scene.setting, scene.timeOfDay].filter(Boolean).join(" - ")}
+                  </p>
                 )}
                 <div>
-                  <label className="text-xs text-neutral-500">خلاصه</label>
+                  <label className="block text-xs font-medium text-[var(--muted)] mb-1">خلاصه</label>
                   {canEdit ? (
                     <textarea
                       value={scene.summary}
                       onChange={(e) => updateScene(si, "summary", e.target.value)}
                       rows={2}
-                      className="mt-1 w-full rounded-xl border border-neutral-200 bg-white/50 px-3 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:border-neutral-300 focus:ring-2 focus:ring-neutral-900/10 focus:bg-white/80 dark:border-neutral-700 dark:bg-neutral-800/30 dark:focus:bg-neutral-800/50 dark:focus:border-neutral-600"
+                      className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)] focus:border-[var(--input-focus-border)]"
                       placeholder="خلاصه صحنه"
                     />
                   ) : (
@@ -312,8 +372,14 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                     <h4 className="text-sm font-medium">محتوای صحنه</h4>
                     {canEdit && (
                       <div className="flex gap-1">
-                        <Button onClick={() => addDialogue(si)} size="sm" variant="ghost"><Plus className="ml-1 h-3 w-3" />دیالوگ</Button>
-                        <Button onClick={() => addDescription(si)} size="sm" variant="ghost"><Plus className="ml-1 h-3 w-3" />توضیح</Button>
+                        <Button onClick={() => addDialogue(si)} size="sm" variant="ghost" className="gap-1">
+                          <Plus className="h-3 w-3" />
+                          دیالوگ
+                        </Button>
+                        <Button onClick={() => addDescription(si)} size="sm" variant="ghost" className="gap-1">
+                          <Plus className="h-3 w-3" />
+                          توضیح
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -333,29 +399,33 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                       }}
                       className={`flex items-start gap-2 rounded-xl border p-3 transition-all duration-200 ${
                         item.type === "description"
-                          ? "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/10"
-                          : "border-neutral-200 bg-white/60 dark:border-neutral-700 dark:bg-neutral-800/30"
+                          ? "border-[var(--amber-border)] bg-[var(--amber-bg)]"
+                          : "border-[var(--card-border)] bg-[var(--card-bg)]"
                       } ${canEdit ? "cursor-grab" : ""}`}
                     >
-                      {canEdit && <GripVertical className="mt-1.5 h-4 w-4 shrink-0 text-neutral-300 dark:text-neutral-600" />}
+                      {canEdit && (
+                        <GripVertical className="mt-1.5 h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
+                      )}
                       {canEdit ? (
                         item.type === "dialogue" ? (
                           <>
-                            <select
-                              value={item.characterId}
-                              onChange={(e) => updateContent(si, ci, "characterId", e.target.value)}
-                              className="w-28 shrink-0 rounded-lg border border-neutral-200 bg-white/80 px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-800/50"
-                            >
-                              <option value="">انتخاب...</option>
-                              {charList.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                              ))}
-                            </select>
+                            <div className="w-full sm:w-auto">
+                              <select
+                                value={item.characterId}
+                                onChange={(e) => updateContent(si, ci, "characterId", e.target.value)}
+                                className="w-full sm:w-28 rounded-lg border border-[var(--input-border)] bg-[var(--select-bg)] px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)]"
+                              >
+                                <option value="">انتخاب...</option>
+                                {charList.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                              </select>
+                            </div>
                             <textarea
                               value={item.text}
                               onChange={(e) => updateContent(si, ci, "text", e.target.value)}
                               rows={1}
-                              className="flex-1 rounded-lg border border-neutral-200 bg-white/50 px-3 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:border-neutral-300 focus:ring-2 focus:ring-neutral-900/10 focus:bg-white/80 dark:border-neutral-700 dark:bg-neutral-800/30 dark:focus:bg-neutral-800/50 dark:focus:border-neutral-600"
+                              className="flex-1 min-w-0 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)] focus:border-[var(--input-focus-border)]"
                               placeholder="متن دیالوگ"
                             />
                           </>
@@ -364,7 +434,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                             value={item.text}
                             onChange={(e) => updateContent(si, ci, "text", e.target.value)}
                             rows={2}
-                            className="flex-1 rounded-lg border border-amber-200 bg-amber-50/30 px-3 py-1.5 text-sm italic shadow-sm backdrop-blur-sm transition-all duration-200 focus:border-amber-300 focus:ring-2 focus:ring-amber-900/10 focus:bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/5 dark:focus:bg-amber-900/10 dark:focus:border-amber-700"
+                            className="flex-1 min-w-0 rounded-lg border border-[var(--amber-border)] bg-[var(--amber-bg)] px-3 py-1.5 text-sm italic shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-900/10 dark:focus:ring-amber-700/20 focus:border-amber-300 dark:focus:border-amber-700"
                             placeholder="توضیح صحنه (حرکت بازیگر، نور، صدا و...)"
                           />
                         )
@@ -374,11 +444,11 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                           <p className="text-sm">{item.text}</p>
                         </>
                       ) : (
-                        <p className="text-sm italic text-amber-700 dark:text-amber-400">{item.text}</p>
+                        <p className="text-sm italic text-[var(--amber-text)]">{item.text}</p>
                       )}
                       {canEdit && (
                         <Button variant="ghost" size="sm" onClick={() => removeContent(si, ci)}>
-                          <Trash2 className="h-3 w-3 text-red-500" />
+                          <Trash2 className="h-3 w-3 text-[var(--red-text)]" />
                         </Button>
                       )}
                     </div>
