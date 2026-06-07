@@ -1,20 +1,6 @@
 import type { Metadata } from "next"
+import { ThemeProvider } from "@/src/components/ThemeProvider"
 import "./globals.css"
-
-const themeScript = `
-(function() {
-  var theme = localStorage.getItem('theme');
-  if (!theme) {
-    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  if (theme === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
-  document.documentElement.style.setProperty('color-scheme', theme);
-})();
-`
 
 export const metadata: Metadata = {
   title: "تیاتر | مدیریت تولید تئاتر",
@@ -28,16 +14,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl" className="h-full antialiased" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
       <body className="relative min-h-full flex flex-col overflow-x-hidden">
         <div className="pointer-events-none fixed inset-0 -z-10">
           <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-amber-200/20 blur-3xl dark:bg-amber-200/5" />
           <div className="absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-rose-200/20 blur-3xl dark:bg-rose-200/5" />
           <div className="absolute left-1/3 top-1/2 h-64 w-64 rounded-full bg-amber-100/10 blur-3xl dark:bg-amber-100/5" />
         </div>
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
