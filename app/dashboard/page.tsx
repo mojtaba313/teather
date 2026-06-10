@@ -6,7 +6,8 @@ import { AppLayout } from "@/src/components/AppLayout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
 import { Button } from "@/src/components/ui/Button"
 import { Badge } from "@/src/components/ui/Badge"
-import { Plus, Theater, Users, Calendar, CalendarCheck, ArrowLeft } from "lucide-react"
+import { Plus, Theater, Users, Calendar, CalendarCheck, ArrowLeft, KeyRound } from "lucide-react"
+import { ChangePasswordSection } from "./change-password"
 
 const statusMap: Record<string, string> = {
   IDEA: "ایده",
@@ -144,6 +145,20 @@ export default async function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="animate-fade-in-3">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-[var(--muted)]" />
+                <CardTitle>تغییر رمز عبور</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ChangePasswordSection />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppLayout>

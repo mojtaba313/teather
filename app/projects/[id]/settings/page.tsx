@@ -8,8 +8,17 @@ import { Input } from "@/src/components/ui/Input"
 import { Badge } from "@/src/components/ui/Badge"
 import { hasAnyRole } from "@/src/lib/roles"
 import { revalidatePath } from "next/cache"
-import { Settings, UserPlus, Users, CheckCircle, XCircle, Shield, UserMinus, ArrowLeft } from "lucide-react"
+import { Settings, UserPlus, Users, CheckCircle, XCircle, Shield, UserMinus, ArrowLeft, Pencil, AlertTriangle } from "lucide-react"
 import Link from "next/link"
+import type { ProjectStatus } from "@prisma/client"
+import { updateProject } from "@/src/actions/projects"
+import { DeleteProjectButton } from "./delete-project-button"
+
+async function editProject(formData: FormData) {
+  "use server"
+  const projectId = formData.get("projectId") as string
+  await updateProject(projectId, formData)
+}
 
 const roleLabels: Record<string, string> = {
   writer: "نویسنده",
@@ -123,7 +132,7 @@ async function saveStatus(formData: FormData) {
   })
   if (!member || !hasAnyRole(member.roles, ["director", "stage_manager"])) return
 
-  await prisma.project.update({ where: { id: projectId }, data: { status: status as any } })
+  await prisma.project.update({ where: { id: projectId }, data: { status: status as ProjectStatus } })
   revalidatePath(`/projects/${projectId}`)
   revalidatePath(`/projects/${projectId}/settings`)
 }
@@ -236,6 +245,59 @@ export default async function SettingsPage(props: {
               </form>
             </CardContent>
           </Card>
+
+          {/* Edit project */}
+          {canManage && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Pencil className="h-4 w-4 text-[var(--muted)]" />
+                  <CardTitle>ویرایش پروژه</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form action={editProject} className="space-y-3">
+                  <input type="hidden" name="projectId" value={id} />
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">عنوان پروژه</label>
+                    <Input name="title" defaultValue={project.title} required placeholder="عنوان پروژه" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-[var(--muted)]">توضیحات</label>
+                    <textarea
+                      name="description"
+                      defaultValue={project.description ?? ""}
+                      rows={3}
+                      className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)] focus:border-[var(--input-focus-border)] resize-none"
+                      placeholder="توضیحات پروژه..."
+                    />
+                  </div>
+                  <Button type="submit" size="sm" className="gap-2">
+                    <Pencil className="h-4 w-4" />
+                    ذخیره تغییرات
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Danger zone */}
+          {member.roles.includes("director") && (
+            <Card className="border-[var(--red-border)]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-[var(--red-text)]" />
+                  <CardTitle className="text-[var(--red-text)]">منطقه خطرناک</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-[var(--muted)] mb-4">
+                  پس از حذف پروژه، تمامی اطلاعات مربوط به آن شامل فیلمنامه، شخصیت‌ها، تمرینات و اجراها برای همیشه حذف خواهند شد.
+                </p>
+                <DeleteProjectButton projectId={id} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Create new user */}
           {member.roles.includes("director") && (

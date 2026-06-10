@@ -2,7 +2,7 @@ import { cn } from "@/src/lib/utils"
 
 const variantStyles: Record<string, string> = {
   default: "bg-[var(--badge-bg)] text-[var(--badge-text)]",
-  outline: "border border-[var(--input-border)] text-[var(--muted)]",
+  outline: "border border-[var(--input-border)] text-[var(--muted)] bg-transparent",
   success: "bg-[var(--green-bg)] border border-[var(--green-border)] text-[var(--green-text)]",
   warning: "bg-[var(--amber-bg)] border border-[var(--amber-border)] text-[var(--amber-text)]",
   destructive: "bg-[var(--red-bg)] border border-[var(--red-border)] text-[var(--red-text)]",

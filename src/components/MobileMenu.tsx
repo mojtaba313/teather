@@ -1,7 +1,8 @@
 "use client"
 
-import { Menu, LogOut, Clapperboard } from "lucide-react"
+import { Menu, LogOut, Clapperboard, Users } from "lucide-react"
 import { signOutAction } from "@/src/actions/auth"
+import Link from "next/link"
 
 export function MobileMenuButton() {
   return (
@@ -19,7 +20,7 @@ export function MobileMenuButton() {
   )
 }
 
-export function MobileMenuPanel({ userName }: { userName: string }) {
+export function MobileMenuPanel({ userName, isAdmin }: { userName: string; isAdmin?: boolean }) {
   return (
     <div
       id="mobile-menu"
@@ -43,6 +44,19 @@ export function MobileMenuPanel({ userName }: { userName: string }) {
           <p className="text-xs text-[var(--muted)]">پنل کاربری</p>
         </div>
       </div>
+      {isAdmin && (
+        <Link
+          href="/admin/users"
+          className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-[var(--muted)] transition-colors hover:bg-[var(--badge-bg)] hover:text-[var(--foreground)]"
+          onClick={() => {
+            const menu = document.getElementById("mobile-menu")
+            if (menu) menu.classList.add("hidden")
+          }}
+        >
+          <Users className="h-4 w-4" />
+          مدیریت کاربران
+        </Link>
+      )}
       <form action={signOutAction} className="mt-auto">
         <button
           type="submit"

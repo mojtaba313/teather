@@ -1,14 +1,19 @@
 import { auth } from "@/src/lib/auth"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Clapperboard, LogOut } from "lucide-react"
+import { Clapperboard, LogOut, Users } from "lucide-react"
 import { DarkModeToggle } from "./DarkModeToggle"
 import { MobileMenuButton, MobileMenuPanel } from "./MobileMenu"
 import { signOutAction } from "@/src/actions/auth"
+import { prisma } from "@/src/lib/prisma"
 
 export async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
+
+  const isAdmin = !!(await prisma.projectMember.findFirst({
+    where: { userId: session.user.id, roles: { has: "director" } },
+  }))
 
   return (
     <div className="relative min-h-screen" dir="rtl">
@@ -17,7 +22,7 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="decorative-blur top-1/2 left-1/3 h-60 w-60 bg-[var(--blur-circle-3)]" />
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        <MobileHeader userName={session.user.name ?? ""} />
+        <MobileHeader userName={session.user.name ?? ""} isAdmin={isAdmin} />
         <header className="sticky top-0 z-50 hidden md:flex border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-xl shadow-sm">
           <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-6">
             <Link
@@ -30,6 +35,15 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
               <span>تیاتر</span>
             </Link>
             <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Link
+                  href="/admin/users"
+                  className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-[var(--muted)] transition-all duration-200 hover:bg-[var(--badge-bg)] hover:text-[var(--foreground)]"
+                >
+                  <Users className="h-4 w-4" />
+                  <span>مدیریت کاربران</span>
+                </Link>
+              )}
               <DarkModeToggle />
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--badge-bg)] text-xs font-medium text-[var(--muted)]">
                 {session.user.name?.charAt(0)}
@@ -56,7 +70,7 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
-function MobileHeader({ userName }: { userName: string }) {
+function MobileHeader({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
   return (
     <header className="sticky top-0 z-50 flex md:hidden border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-xl shadow-sm">
       <div className="flex h-14 w-full items-center justify-between px-4">
@@ -72,7 +86,7 @@ function MobileHeader({ userName }: { userName: string }) {
         <div className="flex items-center gap-2">
           <DarkModeToggle />
           <MobileMenuButton />
-          <MobileMenuPanel userName={userName} />
+          <MobileMenuPanel userName={userName} isAdmin={isAdmin} />
         </div>
       </div>
     </header>

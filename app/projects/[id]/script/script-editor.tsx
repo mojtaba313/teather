@@ -621,27 +621,25 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
                       )}
                       {editable ? (
                         item.type === "dialogue" ? (
-                          <>
-                            <div className="w-full sm:w-auto">
-                              <select
-                                value={item.characterId}
-                                onChange={(e) => updateContent(si, ci, "characterId", e.target.value)}
-                                className="w-full sm:w-28 rounded-lg border border-[var(--input-border)] bg-[var(--select-bg)] px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)]"
-                              >
-                                <option value="">انتخاب...</option>
-                                {charList.map((c) => (
-                                  <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                              </select>
-                            </div>
+                          <div className="flex flex-col sm:flex-row gap-2 flex-1 min-w-0">
+                            <select
+                              value={item.characterId}
+                              onChange={(e) => updateContent(si, ci, "characterId", e.target.value)}
+                              className="w-full sm:w-28 rounded-lg border border-[var(--input-border)] bg-[var(--select-bg)] px-2 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)]"
+                            >
+                              <option value="">انتخاب...</option>
+                              {charList.map((c) => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
                             <textarea
                               value={item.text}
                               onChange={(e) => updateContent(si, ci, "text", e.target.value)}
                               rows={1}
-                              className="flex-1 min-w-0 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)] focus:border-[var(--input-focus-border)]"
+                              className="w-full sm:flex-1 min-h-[38px] rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--input-focus-ring)] focus:border-[var(--input-focus-border)]"
                               placeholder="متن دیالوگ"
                             />
-                          </>
+                          </div>
                         ) : (
                           <textarea
                             value={item.text}
