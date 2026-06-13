@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
@@ -43,7 +43,7 @@ async function getProject(projectId: string, userId: string) {
 }
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
 
   const { id } = await params

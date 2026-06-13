@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { auth, getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
@@ -73,7 +73,7 @@ export default async function CharactersPage(props: {
   params: Promise<{ id: string }>
   searchParams: Promise<{ edit?: string }>
 }) {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
   const { id } = await props.params
   const { edit: editingId } = await props.searchParams

@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { auth, getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { AppLayout } from "@/src/components/AppLayout"
@@ -31,7 +31,7 @@ async function createPerformance(formData: FormData) {
 }
 
 export default async function PerformancesPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
   const { id } = await params
 

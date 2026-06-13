@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { AppLayout } from "@/src/components/AppLayout"
@@ -22,7 +22,7 @@ const statusVariants: Record<string, "default" | "outline" | "success" | "warnin
 }
 
 export default async function RehearsalsPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
   const { id } = await params
 

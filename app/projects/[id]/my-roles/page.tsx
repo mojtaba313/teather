@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { AppLayout } from "@/src/components/AppLayout"
@@ -23,7 +23,7 @@ export type ScriptScene = {
 export type NoteMap = Record<string, { memorized: boolean; notes: string | null }>
 
 export default async function MyRolesPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
   const { id } = await params
 

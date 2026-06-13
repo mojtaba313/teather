@@ -1,13 +1,16 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card"
 import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Badge } from "@/src/components/ui/Badge"
-import { Search, CheckCircle2, Circle, StickyNote, Save, Sun, MapPin } from "lucide-react"
+import { Search, CheckCircle2, Circle, StickyNote, Save, Sun, MapPin, Printer } from "lucide-react"
 import { toggleMemorized, saveDialogueNote } from "@/src/actions/dialogue-notes"
 import type { ScriptScene, ScriptContentItem, NoteMap } from "./page"
+import { ScriptStatistics } from "../script/script-statistics"
+import { CharacterGraph } from "../script/character-graph"
+import Link from "next/link"
 
 export function ScriptViewer({
   scenes,
@@ -24,11 +27,38 @@ export function ScriptViewer({
 }) {
   const [filter, setFilter] = useState<"all" | "mine" | "unmemorized">("all")
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<Record<string, boolean>>({})
 
+  // Debounce search to avoid re-rendering on every keystroke
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 250)
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    }
+  }, [search])
+
   const memorizedCount = Array.from(Object.values(noteMap)).filter((n) => n.memorized).length
+
+  const charactersFromScenes = useMemo(() => {
+    const seen = new Set<string>()
+    const chars: { id: string; name: string }[] = []
+    for (const scene of scenes) {
+      for (const item of scene.content) {
+        if (item.type === "dialogue" && item.characterId && !seen.has(item.characterId)) {
+          seen.add(item.characterId)
+          chars.push({ id: item.characterId, name: item.characterName })
+        }
+      }
+    }
+    return chars
+  }, [scenes])
 
   const isMine = useCallback((charId: string) => myCharacterIds.includes(charId), [myCharacterIds])
 
@@ -56,8 +86,8 @@ export function ScriptViewer({
         if (!isMine(item.characterId)) return false
         if (noteMap[key]?.memorized) return false
       }
-      if (search) {
-        const q = search.toLowerCase()
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase()
         const matches =
           item.text.toLowerCase().includes(q) ||
           item.characterName.toLowerCase().includes(q) ||
@@ -66,7 +96,7 @@ export function ScriptViewer({
       }
       return true
     })
-  }, [allItems, filter, search, noteMap, isMine])
+  }, [allItems, filter, debouncedSearch, noteMap, isMine])
 
   // Group filtered items by scene for rendering
   const groupedByScene = useMemo(() => {
@@ -120,6 +150,14 @@ export function ScriptViewer({
           </Badge>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Link href={`/projects/${projectId}/script/print`} target="_blank">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Printer className="h-4 w-4" />
+              PDF
+            </Button>
+          </Link>
+          <ScriptStatistics scenes={scenes} characters={charactersFromScenes} />
+          <CharacterGraph scenes={scenes} characters={charactersFromScenes} />
           <div className="relative flex-1 sm:flex-none sm:min-w-[200px]">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
             <Input
@@ -147,7 +185,7 @@ export function ScriptViewer({
       {filteredItems.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-[var(--muted)]">
-            {search ? "نتیجه‌ای یافت نشد" : filter === "unmemorized" ? "همه دیالوگ‌ها حفظ شده‌اند!" : "نتیجه‌ای یافت نشد"}
+            {debouncedSearch ? "نتیجه‌ای یافت نشد" : filter === "unmemorized" ? "همه دیالوگ‌ها حفظ شده‌اند!" : "نتیجه‌ای یافت نشد"}
           </CardContent>
         </Card>
       ) : (

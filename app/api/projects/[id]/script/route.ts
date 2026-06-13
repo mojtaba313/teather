@@ -47,3 +47,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   revalidatePath(`/projects/${id}/script`)
   return NextResponse.json(script)
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { id } = await params
+  const project = await prisma.project.findUnique({
+    where: { id },
+    include: { script: { select: { id: true, lockedByUserId: true } } },
+  })
+  if (!project?.script) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (project.script.lockedByUserId !== session.user.id) {
+    return NextResponse.json({ error: "Lock held by another user" }, { status: 403 })
+  }
+  await prisma.script.update({
+    where: { id: project.script.id },
+    data: { lockedByUserId: null, lockedAt: null },
+  })
+  return NextResponse.json({ success: true })
+}

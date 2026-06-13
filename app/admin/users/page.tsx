@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { redirect } from "next/navigation"
 import { AppLayout } from "@/src/components/AppLayout"
@@ -7,7 +7,7 @@ import Link from "next/link"
 import { UserManagement } from "./user-management"
 
 export default async function AdminUsersPage() {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
 
   const isDirector = await prisma.projectMember.findFirst({

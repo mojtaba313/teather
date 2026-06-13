@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
+import { cache } from "react"
 import { prisma } from "./prisma"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -48,4 +49,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session
     },
   },
+})
+
+export const getAuth = cache(async () => {
+  return auth()
 })

@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -42,7 +42,7 @@ const roleColors: Record<string, string> = {
 }
 
 export default async function DashboardPage() {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
 
   const memberships = await prisma.projectMember.findMany({

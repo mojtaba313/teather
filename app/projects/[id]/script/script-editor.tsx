@@ -5,10 +5,13 @@ import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
 import { Badge } from "@/src/components/ui/Badge"
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save, ArrowLeft, FileText, Wand2, Lock, Eye, RefreshCw, LogOut } from "lucide-react"
+import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save, ArrowLeft, FileText, Wand2, Lock, Eye, RefreshCw, LogOut, AlertTriangle, Printer } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { acquireScriptLock, releaseScriptLock, heartbeatScriptLock, persistScript } from "@/src/actions/script"
+import { ScriptStatistics } from "./script-statistics"
+import { CharacterGraph } from "./character-graph"
+import { Portal } from "@/src/components/ui/Portal"
 
 interface Character {
   id: string
@@ -86,6 +89,11 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   useEffect(() => { scenesRef.current = scenes }, [scenes])
   const [elapsedText, setElapsedText] = useState("")
   const lockAcquiredAtRef = useRef(0)
+  const [showExitModal, setShowExitModal] = useState(false)
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+  const [exitWarningDismissed, setExitWarningDismissed] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const pushedHistoryRef = useRef(false)
 
   function formatElapsed(acquiredAt: number): string {
     const seconds = Math.floor((Date.now() - acquiredAt) / 1000)
@@ -216,6 +224,51 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     const interval = setInterval(poll, 5_000)
     return () => clearInterval(interval)
   }, [hasLock, canEdit, lockPending, projectId, scriptId])
+
+  // beforeunload — browser tab close / refresh
+  useEffect(() => {
+    if (!hasLock) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [hasLock])
+
+  // popstate — browser back/forward
+  useEffect(() => {
+    if (!hasLock) return
+    if (!pushedHistoryRef.current) {
+      window.history.pushState(null, "", window.location.href)
+      pushedHistoryRef.current = true
+    }
+    const handler = () => {
+      setShowExitModal(true)
+      setExitWarningDismissed(false)
+      window.history.pushState(null, "", window.location.href)
+    }
+    window.addEventListener("popstate", handler)
+    return () => window.removeEventListener("popstate", handler)
+  }, [hasLock])
+
+  // Link click interceptor
+  useEffect(() => {
+    if (!hasLock || !containerRef.current) return
+    const container = containerRef.current
+    const handler = (e: MouseEvent) => {
+      const anchor = e.target instanceof Element ? e.target.closest("a") : null
+      if (!anchor) return
+      const href = anchor.getAttribute("href")
+      if (!href || href.startsWith("#")) return
+      e.preventDefault()
+      setPendingHref(href)
+      setShowExitModal(true)
+      setExitWarningDismissed(false)
+    }
+    container.addEventListener("click", handler)
+    return () => container.removeEventListener("click", handler)
+  }, [hasLock])
 
   const displayScenes = remoteScenes ?? scenes
 
@@ -369,8 +422,41 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     router.back()
   }, [scriptId, scenes, router])
 
+  const handleExitConfirmed = useCallback(async () => {
+    if (!scriptId) return
+    await persistScript(scriptId, { scenes })
+    hasLockRef.current = false
+    setHasLock(false)
+    lockAcquiredAtRef.current = 0
+    setElapsedText("")
+    await releaseScriptLock(scriptId)
+    setShowExitModal(false)
+    pushedHistoryRef.current = false
+    if (pendingHref) {
+      window.location.href = pendingHref
+    } else {
+      router.push(`/projects/${projectId}`)
+    }
+  }, [scriptId, scenes, router, pendingHref, projectId])
+
+  const handleExitWithoutEnding = useCallback(() => {
+    setShowExitModal(false)
+    pushedHistoryRef.current = false
+    if (pendingHref) {
+      window.location.href = pendingHref
+    } else {
+      router.push(`/projects/${projectId}`)
+    }
+  }, [router, pendingHref, projectId])
+
+  const handleDismissExit = useCallback(() => {
+    setShowExitModal(false)
+    setPendingHref(null)
+    setExitWarningDismissed(true)
+  }, [])
+
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div ref={containerRef} className="space-y-6 md:space-y-8">
       <div className="animate-fade-in">
         <Link
           href={`/projects/${projectId}`}
@@ -387,6 +473,14 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
             )}
           </div>
           <div className="flex gap-2">
+            <Link href={`/projects/${projectId}/script/print`} target="_blank">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Printer className="h-4 w-4" />
+                PDF
+              </Button>
+            </Link>
+            <ScriptStatistics scenes={scenes} characters={characters} />
+            <CharacterGraph scenes={scenes} characters={characters} />
             {editable && (
               <Button onClick={handleManualSave} disabled={saving} variant="outline" size="sm" className="gap-2">
                 {saving ? (
@@ -438,6 +532,19 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
           <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
             <Eye className="h-3 w-3" />
             در حال نمایش آخرین تغییرات
+          </div>
+        )}
+
+        {hasLock && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--amber-text)]" />
+              <span>شما در حال ویرایش فیلمنامه هستید. برای خروج ابتدا ویرایش را پایان دهید.</span>
+            </div>
+            <Button onClick={handleEndEditing} size="sm" variant="outline" className="shrink-0 gap-1 whitespace-nowrap">
+              <LogOut className="h-3 w-3" />
+              پایان ویرایش
+            </Button>
           </div>
         )}
       </div>
@@ -670,6 +777,36 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
           </Card>
         ))}
       </div>
+
+      {showExitModal && (
+        <Portal>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--amber-bg)]">
+                <AlertTriangle className="h-5 w-5 text-[var(--amber-text)]" />
+              </div>
+              <h2 className="text-lg font-bold">خروج از صفحه فیلمنامه</h2>
+            </div>
+            <p className="mb-6 text-sm text-[var(--muted)]">
+              شما در حال ویرایش فیلمنامه هستید. لطفاً قبل از خروج ویرایش را پایان دهید تا دیگران بتوانند فیلمنامه را ویرایش کنند.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleExitConfirmed} className="w-full gap-2">
+                <LogOut className="h-4 w-4" />
+                پایان ویرایش و خروج
+              </Button>
+              <Button onClick={handleExitWithoutEnding} variant="outline" className="w-full gap-2">
+                خروج بدون پایان ویرایش
+              </Button>
+              <Button onClick={handleDismissExit} variant="ghost" className="w-full gap-2">
+                ادامه ویرایش
+              </Button>
+            </div>
+          </div>
+        </div>
+        </Portal>
+      )}
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { hasAnyRole } from "@/src/lib/roles"
 import type { Prisma } from "@prisma/client"
 
-const LOCK_TIMEOUT_MS = 300_000
+const LOCK_TIMEOUT_MS = 60_000
 
 export async function acquireScriptLock(scriptId: string) {
   const session = await auth()

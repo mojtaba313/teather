@@ -5,6 +5,7 @@ import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
 import { Plus, X, Loader2, Calendar } from "lucide-react"
+import { Portal } from "@/src/components/ui/Portal"
 import { useRouter } from "next/navigation"
 
 export function RehearsalForm({ projectId }: { projectId: string }) {
@@ -41,8 +42,9 @@ export function RehearsalForm({ projectId }: { projectId: string }) {
   }
 
   return (
+    <Portal>
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in"
       onClick={() => setOpen(false)}
     >
       <Card
@@ -91,5 +93,6 @@ export function RehearsalForm({ projectId }: { projectId: string }) {
         </CardContent>
       </Card>
     </div>
+    </Portal>
   )
 }

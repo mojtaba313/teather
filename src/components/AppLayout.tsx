@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { getAuth } from "@/src/lib/auth"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Clapperboard, LogOut, Users } from "lucide-react"
@@ -8,7 +8,7 @@ import { signOutAction } from "@/src/actions/auth"
 import { prisma } from "@/src/lib/prisma"
 
 export async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user) redirect("/login")
 
   const isAdmin = !!(await prisma.projectMember.findFirst({
@@ -62,7 +62,7 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="relative z-10 flex-1 mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8 animate-fade-in">
+        <main className="flex-1 mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8 animate-fade-in">
           {children}
         </main>
       </div>

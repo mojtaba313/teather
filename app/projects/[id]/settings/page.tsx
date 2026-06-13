@@ -1,4 +1,4 @@
-import { auth } from "@/src/lib/auth"
+import { auth, getAuth } from "@/src/lib/auth"
 import { prisma } from "@/src/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { AppLayout } from "@/src/components/AppLayout"
@@ -157,7 +157,7 @@ export default async function SettingsPage(props: {
   params: Promise<{ id: string }>
   searchParams: Promise<{ success?: string; error?: string }>
 }) {
-  const session = await auth()
+  const session = await getAuth()
   if (!session?.user?.id) redirect("/login")
   const { id } = await props.params
   const { success, error } = await props.searchParams
