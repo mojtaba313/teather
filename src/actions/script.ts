@@ -54,6 +54,30 @@ export async function releaseScriptLock(scriptId: string) {
   }
 }
 
+export async function endEditingSession(scriptId: string, contentJson: unknown) {
+  const session = await auth()
+  if (!session?.user?.id) return
+
+  const script = await prisma.script.findUnique({ where: { id: scriptId }, include: { project: { select: { id: true } } } })
+  if (!script) return
+
+  const member = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId: session.user.id, projectId: script.project.id } },
+  })
+  if (!member || !hasAnyRole(member.roles, ["writer", "director"])) return
+
+  await prisma.script.update({
+    where: { id: scriptId },
+    data: {
+      contentJson: contentJson as Prisma.InputJsonValue,
+      lockedByUserId: null,
+      lockedAt: null,
+    },
+  })
+
+  revalidatePath(`/projects/${script.project.id}/script`)
+}
+
 export async function heartbeatScriptLock(scriptId: string) {
   const session = await auth()
   if (!session?.user?.id) return

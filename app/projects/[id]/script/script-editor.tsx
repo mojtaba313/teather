@@ -5,10 +5,10 @@ import { Button } from "@/src/components/ui/Button"
 import { Input } from "@/src/components/ui/Input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card"
 import { Badge } from "@/src/components/ui/Badge"
-import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save, ArrowLeft, FileText, Wand2, Lock, Eye, RefreshCw, LogOut, AlertTriangle, Printer } from "lucide-react"
+import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save, ArrowLeft, FileText, Wand2, Lock, Eye, RefreshCw, LogOut, AlertTriangle, Printer, Edit3, XCircle, MapPin, Sun } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { acquireScriptLock, releaseScriptLock, heartbeatScriptLock, persistScript } from "@/src/actions/script"
+import { acquireScriptLock, releaseScriptLock, heartbeatScriptLock, persistScript, endEditingSession } from "@/src/actions/script"
 import { ScriptStatistics } from "./script-statistics"
 import { CharacterGraph } from "./character-graph"
 import { Portal } from "@/src/components/ui/Portal"
@@ -74,6 +74,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     return []
   })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [expandedScenes, setExpandedScenes] = useState<Set<number>>(new Set([0]))
   const [newCharName, setNewCharName] = useState("")
   const [charList] = useState(characters)
@@ -82,7 +83,7 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   const [hasLock, setHasLock] = useState(false)
   const [lockedByName, setLockedByName] = useState("")
   const scriptId = script?.id
-  const [lockPending, setLockPending] = useState(canEdit && !!scriptId)
+  const [lockPending, setLockPending] = useState(false)
   const [remoteScenes, setRemoteScenes] = useState<ScriptScene[] | null>(null)
   const hasLockRef = useRef(false)
   const scenesRef = useRef(scenes)
@@ -91,9 +92,9 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   const lockAcquiredAtRef = useRef(0)
   const [showExitModal, setShowExitModal] = useState(false)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
-  const [exitWarningDismissed, setExitWarningDismissed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const pushedHistoryRef = useRef(false)
+  const [mode, setMode] = useState<"view" | "edit">("view")
 
   function formatElapsed(acquiredAt: number): string {
     const seconds = Math.floor((Date.now() - acquiredAt) / 1000)
@@ -104,19 +105,18 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     return `${hours} ساعت و ${minutes % 60} دقیقه`
   }
 
-  const editable = canEdit && hasLock
+  const editable = canEdit && hasLock && mode === "edit"
 
-  // acquire lock on mount
-  useEffect(() => {
-    if (!canEdit || !scriptId) return
-
-    let cancelled = false
-
-    acquireScriptLock(scriptId).then((result) => {
-      if (cancelled) return
+  // Lock acquisition — only called explicitly via handleStartEditing
+  const handleStartEditing = useCallback(async () => {
+    if (!scriptId) return
+    setLockPending(true)
+    try {
+      const result = await acquireScriptLock(scriptId)
       if (result.locked) {
         hasLockRef.current = true
         setHasLock(true)
+        setMode("edit")
         lockAcquiredAtRef.current = Date.now()
         setElapsedText(formatElapsed(lockAcquiredAtRef.current))
       } else {
@@ -126,16 +126,11 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
           setElapsedText(formatElapsed(lockAcquiredAtRef.current))
         }
       }
-      setLockPending(false)
-    })
-
-    return () => {
-      cancelled = true
-      if (hasLockRef.current && scriptId) {
-        releaseScriptLock(scriptId)
-      }
+    } catch {
+      setSaveError("خطا در دریافت قفل ویرایش")
     }
-  }, [canEdit, scriptId])
+    setLockPending(false)
+  }, [scriptId])
 
   // elapsed time ticker
   useEffect(() => {
@@ -146,33 +141,38 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
     return () => clearInterval(interval)
   }, [hasLock, lockedByName])
 
-  // heartbeat
+  // heartbeat — only in edit mode
   useEffect(() => {
-    if (!hasLock || !scriptId) return
+    if (!hasLock || !scriptId || mode !== "edit") return
     const interval = setInterval(() => {
       heartbeatScriptLock(scriptId)
     }, 20_000)
     return () => clearInterval(interval)
-  }, [hasLock, scriptId])
+  }, [hasLock, scriptId, mode])
 
-  // auto-save debounce
+  // auto-save debounce — only in edit mode, with error handling
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (!hasLock || !scriptId) return
+    if (!hasLock || !scriptId || mode !== "edit") return
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
       setSaving(true)
-      await persistScript(scriptId, { scenes: scenesRef.current })
+      try {
+        await persistScript(scriptId, { scenes: scenesRef.current })
+        setSaveError(null)
+      } catch {
+        setSaveError("ذخیره خودکار انجام نشد")
+      }
       setSaving(false)
     }, 5_000)
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     }
-  }, [scenes, hasLock, scriptId])
+  }, [scenes, hasLock, scriptId, mode])
 
-  // polling for read-only viewers
+  // polling for read-only viewers — only in view mode
   useEffect(() => {
-    if (hasLock || !canEdit || lockPending) return
+    if (mode !== "view" || hasLock || !canEdit || lockPending) return
 
     const poll = async () => {
       try {
@@ -190,25 +190,10 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
             content: (s.content as ScriptContentItem[]) || [],
           })))
         }
-        // If the lock is now free, re-attempt acquisition
         if (!data.lockedBy) {
-          if (scriptId) {
-            const result = await acquireScriptLock(scriptId)
-            if (result.locked) {
-              hasLockRef.current = true
-              setHasLock(true)
-              setLockedByName("")
-              setRemoteScenes(null)
-              lockAcquiredAtRef.current = Date.now()
-              setElapsedText(formatElapsed(lockAcquiredAtRef.current))
-            } else {
-              setLockedByName(result.lockedBy ?? "")
-              if (result.lockedAt) {
-                lockAcquiredAtRef.current = new Date(result.lockedAt).getTime()
-                setElapsedText(formatElapsed(lockAcquiredAtRef.current))
-              }
-            }
-          }
+          setLockedByName("")
+          lockAcquiredAtRef.current = 0
+          setElapsedText("")
         } else if (data.lockedBy.name) {
           setLockedByName(data.lockedBy.name)
           if (data.lockedAt) {
@@ -217,44 +202,43 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
           }
         }
       } catch {
-        // ignore
+        // ignore poll errors
       }
     }
 
     const interval = setInterval(poll, 5_000)
     return () => clearInterval(interval)
-  }, [hasLock, canEdit, lockPending, projectId, scriptId])
+  }, [hasLock, canEdit, lockPending, projectId, scriptId, mode])
 
-  // beforeunload — browser tab close / refresh
+  // beforeunload — only in edit mode
   useEffect(() => {
-    if (!hasLock) return
+    if (!hasLock || mode !== "edit") return
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault()
       e.returnValue = ""
     }
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [hasLock])
+  }, [hasLock, mode])
 
-  // popstate — browser back/forward
+  // popstate — only in edit mode
   useEffect(() => {
-    if (!hasLock) return
+    if (!hasLock || mode !== "edit") return
     if (!pushedHistoryRef.current) {
       window.history.pushState(null, "", window.location.href)
       pushedHistoryRef.current = true
     }
     const handler = () => {
       setShowExitModal(true)
-      setExitWarningDismissed(false)
       window.history.pushState(null, "", window.location.href)
     }
     window.addEventListener("popstate", handler)
     return () => window.removeEventListener("popstate", handler)
-  }, [hasLock])
+  }, [hasLock, mode])
 
-  // Link click interceptor
+  // Link click interceptor — only in edit mode
   useEffect(() => {
-    if (!hasLock || !containerRef.current) return
+    if (!hasLock || mode !== "edit" || !containerRef.current) return
     const container = containerRef.current
     const handler = (e: MouseEvent) => {
       const anchor = e.target instanceof Element ? e.target.closest("a") : null
@@ -264,11 +248,26 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
       e.preventDefault()
       setPendingHref(href)
       setShowExitModal(true)
-      setExitWarningDismissed(false)
     }
     container.addEventListener("click", handler)
     return () => container.removeEventListener("click", handler)
-  }, [hasLock])
+  }, [hasLock, mode])
+
+  // cleanup lock on unmount
+  useEffect(() => {
+    return () => {
+      if (hasLockRef.current && scriptId) {
+        releaseScriptLock(scriptId)
+      }
+    }
+  }, [scriptId])
+
+  // Auto-dismiss save errors
+  useEffect(() => {
+    if (!saveError) return
+    const t = setTimeout(() => setSaveError(null), 6_000)
+    return () => clearTimeout(t)
+  }, [saveError])
 
   const displayScenes = remoteScenes ?? scenes
 
@@ -406,30 +405,42 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   const handleManualSave = useCallback(async () => {
     if (!scriptId) return
     setSaving(true)
-    await persistScript(scriptId, { scenes })
+    try {
+      await persistScript(scriptId, { scenes })
+      setSaveError(null)
+      router.refresh()
+    } catch {
+      setSaveError("خطا در ذخیره فیلمنامه")
+    }
     setSaving(false)
-    router.refresh()
   }, [scriptId, scenes, router])
 
   const handleEndEditing = useCallback(async () => {
     if (!scriptId) return
-    await persistScript(scriptId, { scenes })
+    try {
+      await endEditingSession(scriptId, { scenes })
+    } catch {
+      // best-effort
+    }
     hasLockRef.current = false
     setHasLock(false)
+    setMode("view")
     lockAcquiredAtRef.current = 0
     setElapsedText("")
-    await releaseScriptLock(scriptId)
-    router.back()
-  }, [scriptId, scenes, router])
+    pushedHistoryRef.current = false
+  }, [scriptId, scenes])
 
   const handleExitConfirmed = useCallback(async () => {
     if (!scriptId) return
-    await persistScript(scriptId, { scenes })
+    try {
+      await endEditingSession(scriptId, { scenes })
+    } catch {
+      // best-effort
+    }
     hasLockRef.current = false
     setHasLock(false)
     lockAcquiredAtRef.current = 0
     setElapsedText("")
-    await releaseScriptLock(scriptId)
     setShowExitModal(false)
     pushedHistoryRef.current = false
     if (pendingHref) {
@@ -442,6 +453,8 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   const handleExitWithoutEnding = useCallback(() => {
     setShowExitModal(false)
     pushedHistoryRef.current = false
+    hasLockRef.current = false
+    setHasLock(false)
     if (pendingHref) {
       window.location.href = pendingHref
     } else {
@@ -452,9 +465,154 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
   const handleDismissExit = useCallback(() => {
     setShowExitModal(false)
     setPendingHref(null)
-    setExitWarningDismissed(true)
   }, [])
 
+  // ── View Mode (My Roles styling) ──────────────────────────
+  if (mode === "view") {
+    return (
+      <div className="space-y-6 md:space-y-8">
+        <div className="animate-fade-in">
+          <Link
+            href={`/projects/${projectId}`}
+            className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            بازگشت به پروژه
+          </Link>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">فیلمنامه</h1>
+              <span className="text-xs text-[var(--muted-foreground)]">{scenes.length} صحنه</span>
+            </div>
+            <div className="flex gap-2">
+              <Link href={`/projects/${projectId}/script/print`} target="_blank">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Printer className="h-4 w-4" />
+                  PDF
+                </Button>
+              </Link>
+              <ScriptStatistics scenes={scenes} characters={characters} />
+              <CharacterGraph scenes={scenes} characters={characters} />
+              {canEdit && (
+                <Button onClick={handleStartEditing} disabled={lockPending} size="sm" className="gap-2">
+                  {lockPending ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Edit3 className="h-4 w-4" />
+                  )}
+                  {lockPending ? "در حال دریافت..." : "ویرایش فیلمنامه"}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {canEdit && lockedByName && !hasLock && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
+              <Lock className="h-4 w-4 shrink-0" />
+              <span>
+                <strong>{lockedByName}</strong> در حال ویرایش فیلمنامه است ({elapsedText}). شما در حالت فقط‌خواندن هستید.
+              </span>
+            </div>
+          )}
+
+          {!canEdit && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
+              <Eye className="h-4 w-4 shrink-0" />
+              <span>شما دسترسی ویرایش فیلمنامه را ندارید — حالت نمایش</span>
+            </div>
+          )}
+        </div>
+
+        {displayScenes.length === 0 ? (
+          <Card className="animate-fade-in-2">
+            <CardContent className="py-16 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--badge-bg)]">
+                  <FileText className="h-7 w-7 text-[var(--muted)]" />
+                </div>
+                <p className="text-[var(--muted)]">هنوز هیچ صحنه‌ای اضافه نشده است</p>
+                {canEdit && (
+                  <Button onClick={handleStartEditing} variant="outline" size="sm" className="mt-2">
+                    <Edit3 className="h-4 w-4 ml-1" />
+                    افزودن اولین صحنه
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-8">
+            {displayScenes.map((scene, i) => (
+              <div key={i} className="space-y-4 animate-fade-in">
+                {/* Scene header — divider line with centered title */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-[var(--card-border)]" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <div className="bg-[var(--bg-base)] px-4">
+                      <h3 className="text-base font-bold text-[var(--accent)]">{scene.title}</h3>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scene details card */}
+                {(scene.setting || scene.timeOfDay || scene.summary) && (
+                  <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)]/50 p-4 space-y-2">
+                    {scene.setting && (
+                      <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+                        <span>{scene.setting}</span>
+                      </div>
+                    )}
+                    {scene.timeOfDay && (
+                      <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                        <Sun className="h-3.5 w-3.5 shrink-0 text-[var(--amber-text)]" />
+                        <span>{scene.timeOfDay}</span>
+                      </div>
+                    )}
+                    {scene.summary && (
+                      <p className="text-sm text-[var(--muted)] leading-relaxed pr-5 border-r-2 border-[var(--accent)]/20">
+                        {scene.summary}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Scene content */}
+                <div className="space-y-3">
+                  {scene.content.map((item, ci) =>
+                    item.type === "description" ? (
+                      <div key={ci} className="relative pr-4 mr-2 border-r-2 border-[var(--card-border)]">
+                        <p className="text-sm text-[var(--muted)] italic leading-relaxed">{item.text}</p>
+                      </div>
+                    ) : (
+                      <Card key={ci} className="transition-all duration-200">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--badge-bg)] text-xs font-mono text-[var(--muted)]">
+                              {item.lineOrder + 1}
+                            </span>
+                            <Badge variant="outline">{item.characterName}</Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm leading-relaxed">{item.text}</p>
+                        </CardContent>
+                      </Card>
+                    )
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Edit Mode ────────────────────────────────────────────
   return (
     <div ref={containerRef} className="space-y-6 md:space-y-8">
       <div className="animate-fade-in">
@@ -468,9 +626,9 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">فیلمنامه</h1>
-            {lockPending && canEdit && (
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--muted)] border-t-transparent" />
-            )}
+            <span className="rounded-full bg-[var(--accent)]/10 text-[var(--accent)] text-xs px-2.5 py-0.5 font-medium">
+              ویرایش
+            </span>
           </div>
           <div className="flex gap-2">
             <Link href={`/projects/${projectId}/script/print`} target="_blank">
@@ -481,106 +639,70 @@ export function ScriptEditor({ projectId, script, characters, canEdit }: ScriptE
             </Link>
             <ScriptStatistics scenes={scenes} characters={characters} />
             <CharacterGraph scenes={scenes} characters={characters} />
-            {editable && (
-              <Button onClick={handleManualSave} disabled={saving} variant="outline" size="sm" className="gap-2">
-                {saving ? (
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {saving ? "در حال ذخیره..." : "ذخیره"}
-              </Button>
-            )}
-            {editable && (
-              <Button onClick={addScene} variant="outline" size="sm" className="gap-2">
-                <Plus className="h-4 w-4" />
-                صحنه جدید
-              </Button>
-            )}
-            {editable && (
-              <Button onClick={handleEndEditing} variant="outline" size="sm" className="gap-2 text-[var(--red-text)] border-[var(--red-text)]/30 hover:bg-[var(--red-bg)]">
-                <LogOut className="h-4 w-4" />
-                پایان ویرایش
-              </Button>
-            )}
+            <Button onClick={handleManualSave} disabled={saving} variant="outline" size="sm" className="gap-2">
+              {saving ? (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {saving ? "در حال ذخیره..." : "ذخیره"}
+            </Button>
+            <Button onClick={addScene} variant="outline" size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              صحنه جدید
+            </Button>
+            <Button onClick={handleEndEditing} variant="outline" size="sm" className="gap-2 text-[var(--red-text)] border-[var(--red-text)]/30 hover:bg-[var(--red-bg)]">
+              <LogOut className="h-4 w-4" />
+              پایان ویرایش
+            </Button>
           </div>
         </div>
 
-        {canEdit && !lockPending && !hasLock && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
-            <Lock className="h-4 w-4 shrink-0" />
-            <span>
-              <strong>{lockedByName}</strong> در حال ویرایش فیلمنامه است ({elapsedText}). شما در حالت فقط‌خواندن هستید.
-            </span>
+        <div className="mt-3 flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+            <RefreshCw className={`h-3 w-3 ${saving ? "animate-spin" : ""}`} />
+            {saving ? "در حال ذخیره..." : "ذخیره خودکار فعال"}
           </div>
-        )}
+          <span className="text-xs text-[var(--muted)]">|</span>
+          <span className="text-xs text-[var(--muted)]">
+            {elapsedText} در حال ویرایش
+          </span>
+        </div>
 
-        {editable && (
-          <div className="mt-3 flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-              <RefreshCw className={`h-3 w-3 ${saving ? "animate-spin" : ""}`} />
-              {saving ? "در حال ذخیره..." : "ذخیره خودکار فعال"}
-            </div>
-            <span className="text-xs text-[var(--muted)]">|</span>
-            <span className="text-xs text-[var(--muted)]">
-              {elapsedText} در حال ویرایش
-            </span>
-          </div>
-        )}
-
-        {remoteScenes && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
-            <Eye className="h-3 w-3" />
-            در حال نمایش آخرین تغییرات
-          </div>
-        )}
-
-        {hasLock && (
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--amber-text)]" />
-              <span>شما در حال ویرایش فیلمنامه هستید. برای خروج ابتدا ویرایش را پایان دهید.</span>
-            </div>
-            <Button onClick={handleEndEditing} size="sm" variant="outline" className="shrink-0 gap-1 whitespace-nowrap">
-              <LogOut className="h-3 w-3" />
-              پایان ویرایش
-            </Button>
+        {saveError && (
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-[var(--red-text)]/30 bg-[var(--red-bg)] px-4 py-2.5 text-sm text-[var(--red-text)]">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="flex-1">{saveError}</span>
+            <button onClick={() => setSaveError(null)} className="shrink-0">
+              <XCircle className="h-4 w-4" />
+            </button>
           </div>
         )}
       </div>
 
-      {!hasLock && editable === false && canEdit === false && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--amber-border)] bg-[var(--amber-bg)] px-4 py-3 text-sm">
-          <Eye className="h-4 w-4 shrink-0" />
-          <span>شما دسترسی ویرایش فیلمنامه را ندارید</span>
-        </div>
-      )}
-
-      {editable && (
-        <Card className="animate-fade-in-1">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Wand2 className="h-4 w-4 text-[var(--muted)]" />
-              ایجاد شخصیت جدید
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                value={newCharName}
-                onChange={(e) => setNewCharName(e.target.value)}
-                placeholder="نام شخصیت"
-                className="flex-1"
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCharacter())}
-              />
-              <Button onClick={addCharacter} size="sm" variant="outline" className="gap-2 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
-                افزودن
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="animate-fade-in-1">
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Wand2 className="h-4 w-4 text-[var(--muted)]" />
+            ایجاد شخصیت جدید
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              value={newCharName}
+              onChange={(e) => setNewCharName(e.target.value)}
+              placeholder="نام شخصیت"
+              className="flex-1"
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCharacter())}
+            />
+            <Button onClick={addCharacter} size="sm" variant="outline" className="gap-2 w-full sm:w-auto">
+              <Plus className="h-4 w-4" />
+              افزودن
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {displayScenes.length === 0 && (
         <Card className="animate-fade-in-2">
