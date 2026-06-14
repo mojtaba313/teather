@@ -54,13 +54,12 @@ export default async function PrintScriptPage({ params }: { params: Promise<{ id
           @page { size: A4; margin: 1.2cm; }
           body { background: white !important; }
           .no-print { display: none !important; }
-          .print-page { width: 100% !important; padding: 0 !important; }
+          .print-wrap { width: 100% !important; padding: 0 !important; }
+          .dialogue-card { break-inside: avoid; }
           .scene-break { page-break-before: always; }
-          .dialogue-text { max-width: none !important; padding: 0.1rem 2rem !important; }
-          .description { max-width: none !important; }
         }
 
-        .print-page {
+        .print-wrap {
           width: 100%;
           max-width: 100%;
           margin: 0 auto;
@@ -71,109 +70,158 @@ export default async function PrintScriptPage({ params }: { params: Promise<{ id
           font-family: "Vazirmatn", system-ui, sans-serif;
         }
 
+        @media print {
+          .print-wrap {
+            background: white;
+            min-height: auto;
+          }
+        }
+
         .no-print {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 12px;
           padding: 12px 16px;
-          margin-bottom: 20px;
+          margin-bottom: 24px;
           background: #0f172a;
           border-radius: 12px;
         }
 
-        .cover-page {
+        /* Cover */
+        .cover {
           text-align: center;
-          padding: 4rem 0 3rem;
+          padding: 5rem 0 3rem;
         }
-
-        .cover-page h1 {
+        .cover h1 {
           font-size: 2rem;
           font-weight: 700;
-          margin-bottom: 0.75rem;
+          margin-bottom: 0.5rem;
         }
-
-        .cover-page .meta {
+        .cover .cover-meta {
           color: #64748b;
           font-size: 0.9rem;
         }
-
-        .cover-page .sep {
-          width: 60px;
+        .cover .cover-line {
+          width: 50px;
           height: 3px;
           background: #14b8a6;
-          margin: 1.25rem auto;
+          margin: 1rem auto;
           border-radius: 2px;
         }
 
-        .scene {
-          margin-top: 2rem;
-          padding-top: 1rem;
+        /* Scene header — divider with centered title */
+        .scene-wrap {
+          margin-top: 1rem;
         }
-
-        .scene-number {
-          font-size: 0.75rem;
-          color: #94a3b8;
-          text-align: center;
-          margin-bottom: 0.25rem;
-        }
-
-        .scene-heading {
-          font-size: 1.25rem;
-          font-weight: 700;
-          text-align: center;
-          margin-bottom: 0.75rem;
-          padding-bottom: 0.5rem;
-          border-bottom: 2px solid #14b8a6;
-        }
-
-        .scene-meta {
-          text-align: center;
-          font-size: 0.85rem;
-          color: #64748b;
+        .scene-header {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
           margin-bottom: 1rem;
         }
-
-        .scene-summary {
-          font-size: 0.85rem;
-          color: #475569;
-          font-style: italic;
-          margin-bottom: 1.25rem;
-          padding: 0.75rem 1rem;
-          background: #f1f5f9;
-          border-radius: 6px;
-          border-right: 3px solid #14b8a6;
-          line-height: 1.8;
+        .scene-header::before,
+        .scene-header::after {
+          content: "";
+          flex: 1;
+          height: 1px;
+          background: #e2e8f0;
+        }
+        .scene-header .scene-title {
+          font-weight: 700;
+          font-size: 1rem;
+          color: #14b8a6;
+          white-space: nowrap;
         }
 
-        .description {
+        /* Scene details card */
+        .scene-details {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 16px;
+          background: rgba(255, 255, 255, 0.5);
+        }
+        .detail-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.85rem;
+          color: #64748b;
+          margin-bottom: 6px;
+        }
+        .detail-row:last-child { margin-bottom: 0; }
+        .detail-icon {
+          width: 14px;
+          height: 14px;
+          flex-shrink: 0;
+        }
+        .scene-summary {
+          font-size: 0.85rem;
+          color: #64748b;
+          padding-right: 1.25rem;
+          border-right: 2px solid rgba(20, 184, 166, 0.2);
+          line-height: 1.7;
+          margin-top: 6px;
+        }
+
+        /* Description */
+        .description-block {
+          position: relative;
+          padding-right: 1rem;
+          margin-right: 0.5rem;
+          border-right: 2px solid #e2e8f0;
+          margin-bottom: 12px;
+        }
+        .description-block p {
           font-size: 0.85rem;
           color: #64748b;
           font-style: italic;
-          margin: 0.75rem 0;
-          padding-right: 1.5rem;
-          border-right: 2px solid #e2e8f0;
+          line-height: 1.7;
+        }
+
+        /* Dialogue card */
+        .dialogue-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 12px 16px;
+          margin-bottom: 12px;
+          background: white;
+          page-break-inside: avoid;
+        }
+        .dialogue-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .dialogue-line {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: 6px;
+          background: #f1f5f9;
+          font-size: 0.75rem;
+          font-family: monospace;
+          color: #94a3b8;
+        }
+        .dialogue-char {
+          display: inline-block;
+          padding: 2px 10px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          font-size: 0.85rem;
+          font-weight: 500;
+        }
+        .dialogue-text {
+          font-size: 0.9rem;
           line-height: 1.8;
         }
 
-        .dialogue-block { margin: 0.75rem 0; }
-
-        .dialogue-char {
-          text-align: center;
-          font-weight: 600;
-          font-size: 0.9rem;
-          margin-bottom: 0.1rem;
-        }
-
-        .dialogue-text {
-          font-size: 0.9rem;
-          max-width: 70%;
-          margin: 0 auto;
-          padding: 0.1rem 1.5rem;
-          line-height: 1.9;
-        }
-
-        .page-footer {
+        /* Footer */
+        .print-footer {
           text-align: center;
           font-size: 0.75rem;
           color: #94a3b8;
@@ -183,39 +231,71 @@ export default async function PrintScriptPage({ params }: { params: Promise<{ id
         }
       `}</style>
 
-      <div className="print-page">
+      <div className="print-wrap">
         <PrintToolbar projectId={id} />
 
         {/* Cover */}
-        <div className="cover-page">
-          <div className="sep" />
+        <div className="cover">
+          <div className="cover-line" />
           <h1>{project.title}</h1>
-          <p className="meta">فیلمنامه کامل</p>
-          <p className="meta" style={{ marginTop: 8 }}>{scenes.length} صحنه</p>
+          <p className="cover-meta">فیلمنامه کامل</p>
+          <p className="cover-meta" style={{ marginTop: 8 }}>{scenes.length} صحنه</p>
         </div>
 
         {/* Scenes */}
         {scenes.map((scene, i) => (
-          <div key={i} className={`scene ${i > 0 ? "scene-break" : ""}`}>
-            <div className="scene-number">صحنه {i + 1}</div>
-            <div className="scene-heading">{scene.title}</div>
+          <div key={i} className={`scene-wrap ${i > 0 ? "scene-break" : ""}`}>
+            {/* Scene header — divider with centered title */}
+            <div className="scene-header">
+              <span className="scene-title">{scene.title}</span>
+            </div>
 
-            {(scene.setting || scene.timeOfDay) && (
-              <div className="scene-meta">
-                {[scene.setting, scene.timeOfDay].filter(Boolean).join(" — ")}
+            {/* Scene details card */}
+            {(scene.setting || scene.timeOfDay || scene.summary) && (
+              <div className="scene-details">
+                {scene.setting && (
+                  <div className="detail-row">
+                    <svg className="detail-icon" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <span>{scene.setting}</span>
+                  </div>
+                )}
+                {scene.timeOfDay && (
+                  <div className="detail-row">
+                    <svg className="detail-icon" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="5" />
+                      <line x1="12" y1="1" x2="12" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="23" />
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                      <line x1="1" y1="12" x2="3" y2="12" />
+                      <line x1="21" y1="12" x2="23" y2="12" />
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                    <span>{scene.timeOfDay}</span>
+                  </div>
+                )}
+                {scene.summary && (
+                  <div className="scene-summary">{scene.summary}</div>
+                )}
               </div>
             )}
 
-            {scene.summary && (
-              <div className="scene-summary">{scene.summary}</div>
-            )}
-
+            {/* Scene content */}
             {scene.content.map((item, ci) =>
               item.type === "description" ? (
-                <div key={ci} className="description">{item.text}</div>
+                <div key={ci} className="description-block">
+                  <p>{item.text}</p>
+                </div>
               ) : (
-                <div key={ci} className="dialogue-block">
-                  <div className="dialogue-char">{item.characterName}</div>
+                <div key={ci} className="dialogue-card">
+                  <div className="dialogue-header">
+                    <span className="dialogue-line">{item.lineOrder + 1}</span>
+                    <span className="dialogue-char">{item.characterName}</span>
+                  </div>
                   <div className="dialogue-text">{item.text}</div>
                 </div>
               )
@@ -223,7 +303,7 @@ export default async function PrintScriptPage({ params }: { params: Promise<{ id
           </div>
         ))}
 
-        <div className="page-footer">{project.title} — فیلمنامه</div>
+        <div className="print-footer">{project.title} — فیلمنامه</div>
       </div>
     </>
   )
